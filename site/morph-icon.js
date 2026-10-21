@@ -120,7 +120,8 @@ const easings = {
   // R13-1: the feel presets. smooth: ease in-out cubic. spring: about 16% overshoot, one wobble. bouncy: about 37%, two to three wobbles.
   smooth: easeInOutCubic,
   spring: springEase(0.5, 13),
-  bouncy: springEase(0.3, 18),
+  bouncy: springEase(0.3, 18), // kept for back compatibility; not documented
+  elastic: springEase(0.2, 26), // about 53% overshoot, 3 to 5 wobbles
   gentle: springEase(0.75, 10), // the spring of rounds 1 to 12 (about 2% overshoot)
 };
 
@@ -7533,6 +7534,20 @@ function keepRuns(D, kept) {
   return runs;
 }
 
+function keepDistToPoly(Q, x, y) {
+  let bd = Infinity;
+  for (let j = 0; j + 3 < Q.length; j += 2) {
+    const dx = Q[j + 2] - Q[j];
+    const dy = Q[j + 3] - Q[j + 1];
+    const l2 = dx * dx + dy * dy;
+    let t = l2 > 0 ? ((x - Q[j]) * dx + (y - Q[j + 1]) * dy) / l2 : 0;
+    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    const d = Math.hypot(x - Q[j] - t * dx, y - Q[j + 1] - t * dy);
+    if (d < bd) bd = d;
+  }
+  return bd;
+}
+
 function ptsInside(P, Q, thr = KEEP_DIST + 0.03) {
   // Fraction of the points of P (flat) that lie within thr of the polyline Q (flat).
   const np = P.length / 2;
@@ -7659,6 +7674,56 @@ function keepPrepass(A, B, o) {
     if (c.x.pair || c.y.pair) continue;
     c.x.pair = c.y;
     c.y.pair = c.x;
+  }
+  // R14-11: a kept piece that lies on two strokes of the other icon is cut at the seam, and each part is kept with the stroke it lies on.
+  for (const side of ['A', 'B']) {
+    const D = side === 'A' ? DA : DB;
+    const mineP = pieces.filter((p) => p.side === side && !p.pair);
+    const otherP = pieces.filter((p) => p.side !== side && !p.pair);
+    for (const y of mineP) {
+      if (D[y.si].closed) continue;
+      const xs = otherP.filter((x) => !x.pair && sameStyle(A[side === 'A' ? y.si : x.si], B[side === 'A' ? x.si : y.si]) && ptsInside(x.pts, y.pts, KEEP_DIST) >= KEEP_COVER);
+      if (xs.length < 2 || new Set(xs.map((x) => x.si)).size < 2) continue;
+      const d = D[y.si];
+      const lab = [];
+      for (let p = y.run.a; p <= y.run.b; p++) {
+        let best = -1;
+        let bd = KEEP_DIST;
+        xs.forEach((x, k) => {
+          const dd = keepDistToPoly(x.pts, d.pts[2 * p], d.pts[2 * p + 1]);
+          if (dd <= bd) {
+            bd = dd;
+            best = k;
+          }
+        });
+        lab.push(best);
+      }
+      const subs = [];
+      xs.forEach((x, k) => {
+        let bestRun = null;
+        for (let i = 0; i < lab.length; i++) {
+          if (lab[i] !== k) continue;
+          let e = i;
+          while (e + 1 < lab.length && lab[e + 1] === k) e++;
+          const a = y.run.a + i;
+          const b = y.run.a + e;
+          let len = 0;
+          for (let p = a; p < b; p++) len += Math.hypot(d.pts[2 * p + 2] - d.pts[2 * p], d.pts[2 * p + 3] - d.pts[2 * p + 1]);
+          if (len >= KEEP_RUN && (!bestRun || len > bestRun.len)) bestRun = { a, b, len };
+          i = e;
+        }
+        if (bestRun && keepEndsAgree(keepSub(d, bestRun.a, bestRun.b).pts, x.pts)) subs.push({ x, run: bestRun });
+      });
+      let tot = 0;
+      for (const sb of subs) tot += sb.run.len;
+      if (subs.length < 2 || tot < KEEP_COVER * y.len) continue;
+      for (const sb of subs) {
+        const np = { side, si: y.si, run: sb.run, len: sb.run.len, whole: false, pts: keepSub(d, sb.run.a, sb.run.b).pts, pair: sb.x };
+        sb.x.pair = np;
+        pieces.push(np);
+        (side === 'A' ? pa : pb).push(np);
+      }
+    }
   }
   // A kept piece that is a whole stroke on both sides is the old static case: leave it to the static rule.
   for (const p of pa) if (p.pair && p.whole && p.pair.whole) { p.pair.pair = null; p.pair = null; }
@@ -12101,6 +12166,19 @@ function registerFamilyFile(json) {
   if (!fam || !fam.id || !fam.icons) throw new Error('registerFamilyFile: expected { id, kind, viewBox, strokeWidth, icons }.');
   if (typeof registerFamily !== 'function') throw new Error('registerFamilyFile: js has no registerFamily yet.');
   return registerFamily(fam);
+}
+
+/**
+ * Register only some icons of a family. `family` is a family id of the package (`'tabler-outline'`, `'phosphor-regular-s'`, ...)
+ * or a family spec without icons. `icons` maps a name to what the family module exports for it. Names are then `<id>:<name>`.
+ *   import { bell, bellOff } from 'shape-aware-morph/tabler-outline';
+ *   registerFamilyIcons('tabler-outline', { bell, 'bell-off': bellOff });
+ */
+function registerFamilyIcons(family, icons) {
+  const meta = typeof family === 'string' ? FAMILY_META[family] : family;
+  if (!meta || !meta.id) throw new Error('registerFamilyIcons: unknown family "' + family + '". Known: ' + Object.keys(FAMILY_META).join(', ') + '.');
+  if (!icons || typeof icons !== 'object') throw new Error('registerFamilyIcons: icons must be an object of name to icon.');
+  return registerFamily({ ...meta, icons });
 }
 
 // ---------------------------------------------------------------------------

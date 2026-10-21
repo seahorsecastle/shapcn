@@ -136,7 +136,6 @@ section.how .story{border-top:0;padding-top:0}
 #play .pgrid{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:48px;align-items:start}
 #play .tech{margin:0;position:sticky;top:calc(env(safe-area-inset-top,0px) + 24px);display:flex;flex-direction:column;gap:12px;min-width:0}
 #play .tech .stage{width:100%}
-#play .tech figcaption{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--sec)}
 #play .pgstrip{color:var(--ink);overflow:hidden}
 #play .pgstrip .ik-strip{gap:2px;padding:0;overflow:visible}
 #play .pgstrip .ik-frame{flex:1 1 0;min-width:0;padding:2px;background:none;border:0;color:var(--ink);cursor:pointer;border-radius:6px}
@@ -300,7 +299,6 @@ footer{padding:32px 0 64px;border-top:1px solid var(--border);color:var(--sec);f
     <figure class="tech">
       <div class="stage" id="pgstage" role="img" aria-label="The technique: each shape in its own color"></div>
       <div class="pgstrip" id="pgstrip"></div>
-      <figcaption><button type="button" class="btn" id="pplay">Play</button><span>Each color is one shape. Slowed down so you can watch.</span></figcaption>
     </figure>
     <ol class="psteps">
       <li class="pstep" aria-labelledby="pq0">
@@ -532,7 +530,8 @@ const easings = {
   // R13-1: the feel presets. smooth: ease in-out cubic. spring: about 16% overshoot, one wobble. bouncy: about 37%, two to three wobbles.
   smooth: easeInOutCubic,
   spring: springEase(0.5, 13),
-  bouncy: springEase(0.3, 18),
+  bouncy: springEase(0.3, 18), // kept for back compatibility; not documented
+  elastic: springEase(0.2, 26), // about 53% overshoot, 3 to 5 wobbles
   gentle: springEase(0.75, 10), // the spring of rounds 1 to 12 (about 2% overshoot)
 };
 
@@ -7945,6 +7944,20 @@ function keepRuns(D, kept) {
   return runs;
 }
 
+function keepDistToPoly(Q, x, y) {
+  let bd = Infinity;
+  for (let j = 0; j + 3 < Q.length; j += 2) {
+    const dx = Q[j + 2] - Q[j];
+    const dy = Q[j + 3] - Q[j + 1];
+    const l2 = dx * dx + dy * dy;
+    let t = l2 > 0 ? ((x - Q[j]) * dx + (y - Q[j + 1]) * dy) / l2 : 0;
+    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    const d = Math.hypot(x - Q[j] - t * dx, y - Q[j + 1] - t * dy);
+    if (d < bd) bd = d;
+  }
+  return bd;
+}
+
 function ptsInside(P, Q, thr = KEEP_DIST + 0.03) {
   // Fraction of the points of P (flat) that lie within thr of the polyline Q (flat).
   const np = P.length / 2;
@@ -8071,6 +8084,56 @@ function keepPrepass(A, B, o) {
     if (c.x.pair || c.y.pair) continue;
     c.x.pair = c.y;
     c.y.pair = c.x;
+  }
+  // R14-11: a kept piece that lies on two strokes of the other icon is cut at the seam, and each part is kept with the stroke it lies on.
+  for (const side of ['A', 'B']) {
+    const D = side === 'A' ? DA : DB;
+    const mineP = pieces.filter((p) => p.side === side && !p.pair);
+    const otherP = pieces.filter((p) => p.side !== side && !p.pair);
+    for (const y of mineP) {
+      if (D[y.si].closed) continue;
+      const xs = otherP.filter((x) => !x.pair && sameStyle(A[side === 'A' ? y.si : x.si], B[side === 'A' ? x.si : y.si]) && ptsInside(x.pts, y.pts, KEEP_DIST) >= KEEP_COVER);
+      if (xs.length < 2 || new Set(xs.map((x) => x.si)).size < 2) continue;
+      const d = D[y.si];
+      const lab = [];
+      for (let p = y.run.a; p <= y.run.b; p++) {
+        let best = -1;
+        let bd = KEEP_DIST;
+        xs.forEach((x, k) => {
+          const dd = keepDistToPoly(x.pts, d.pts[2 * p], d.pts[2 * p + 1]);
+          if (dd <= bd) {
+            bd = dd;
+            best = k;
+          }
+        });
+        lab.push(best);
+      }
+      const subs = [];
+      xs.forEach((x, k) => {
+        let bestRun = null;
+        for (let i = 0; i < lab.length; i++) {
+          if (lab[i] !== k) continue;
+          let e = i;
+          while (e + 1 < lab.length && lab[e + 1] === k) e++;
+          const a = y.run.a + i;
+          const b = y.run.a + e;
+          let len = 0;
+          for (let p = a; p < b; p++) len += Math.hypot(d.pts[2 * p + 2] - d.pts[2 * p], d.pts[2 * p + 3] - d.pts[2 * p + 1]);
+          if (len >= KEEP_RUN && (!bestRun || len > bestRun.len)) bestRun = { a, b, len };
+          i = e;
+        }
+        if (bestRun && keepEndsAgree(keepSub(d, bestRun.a, bestRun.b).pts, x.pts)) subs.push({ x, run: bestRun });
+      });
+      let tot = 0;
+      for (const sb of subs) tot += sb.run.len;
+      if (subs.length < 2 || tot < KEEP_COVER * y.len) continue;
+      for (const sb of subs) {
+        const np = { side, si: y.si, run: sb.run, len: sb.run.len, whole: false, pts: keepSub(d, sb.run.a, sb.run.b).pts, pair: sb.x };
+        sb.x.pair = np;
+        pieces.push(np);
+        (side === 'A' ? pa : pb).push(np);
+      }
+    }
   }
   // A kept piece that is a whole stroke on both sides is the old static case: leave it to the static rule.
   for (const p of pa) if (p.pair && p.whole && p.pair.whole) { p.pair.pair = null; p.pair = null; }
@@ -12515,6 +12578,19 @@ function registerFamilyFile(json) {
   return registerFamily(fam);
 }
 
+/**
+ * Register only some icons of a family. `family` is a family id of the package (`'tabler-outline'`, `'phosphor-regular-s'`, ...)
+ * or a family spec without icons. `icons` maps a name to what the family module exports for it. Names are then `<id>:<name>`.
+ *   import { bell, bellOff } from 'shape-aware-morph/tabler-outline';
+ *   registerFamilyIcons('tabler-outline', { bell, 'bell-off': bellOff });
+ */
+function registerFamilyIcons(family, icons) {
+  const meta = typeof family === 'string' ? FAMILY_META[family] : family;
+  if (!meta || !meta.id) throw new Error('registerFamilyIcons: unknown family "' + family + '". Known: ' + Object.keys(FAMILY_META).join(', ') + '.');
+  if (!icons || typeof icons !== 'object') throw new Error('registerFamilyIcons: icons must be an object of name to icon.');
+  return registerFamily({ ...meta, icons });
+}
+
 // ---------------------------------------------------------------------------
 // R7-B: the cross planner. A stroke icon to a fill icon (or the reverse) is not a morph yet: the old icon implodes
 // over [0, 0.5] and the new icon expands over [0.5, 1]. The plan has the plan API and `crossKind = true`.
@@ -13687,16 +13763,47 @@ function renderWeights(){
   $('#wb').innerHTML=h+'<div class="note">Dashed line: half of the largest weight. Body is on or past it.</div>';
 }
 renderWeights();
+var trans=null,lastT=0,wantT=0;
+function applyStep(s){
+  sv.setPair(s.p[0],s.p[1],'lucide');
+  sv.setOptions(s.o);
+  sv.setT(wantT);lastT=wantT;
+  lastLeg='';renderLegend();
+}
+function endTrans(){
+  if(!trans)return;var x=trans;trans=null;cancelAnimationFrame(x.raf);
+  applyStep(x.s);
+}
+/* the stage morphs from the icon on screen to the icon of the next step */
+function startTrans(s,inf){
+  var a=lastT>0.5?inf.to:inf.from,b=wantT>0.5?s.p[1]:s.p[0];
+  if(a===b){applyStep(s);return}
+  try{
+    sv.setOptions({color:true,dots:false,ties:false,onion:false});
+    sv.setPair(a,b,'lucide');
+  }catch(e){applyStep(s);return}
+  var x=trans={s:s,a:a,b:b,t0:performance.now(),raf:0,k:0},D=650;
+  function f(now){
+    if(trans!==x)return;
+    var k=Math.min(1,(now-x.t0)/D),e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
+    x.k=k;sv.setT(e);
+    if(k>=1){endTrans();return}
+    x.raf=requestAnimationFrame(f);
+  }
+  sv.setT(0);x.raf=requestAnimationFrame(f);
+}
 function setStep(i){
-  if(i===cur)return;cur=i;
+  if(i===cur)return;var first=cur<0;cur=i;
   var s=steps[i];
   stepEls.forEach(function(e,k){e.classList.toggle('on',k===i)});
-  var inf=sv.info();
-  if(inf.from!==s.p[0]||inf.to!==s.p[1])sv.setPair(s.p[0],s.p[1],'lucide');
-  sv.setOptions(s.o);
   document.querySelector('.stage-col').classList.toggle('rig',!!s.rig);
   $('#rigfig').setAttribute('aria-hidden',String(!s.rig));
-  lastLeg='';renderLegend();
+  var inf;
+  if(trans){var x=trans;trans=null;cancelAnimationFrame(x.raf);inf={from:x.a,to:x.b};lastT=x.k>.5?1:0}
+  else inf=sv.info();
+  if(inf.from!==s.p[0]||inf.to!==s.p[1]){
+    if(first||RM)applyStep(s);else startTrans(s,inf);
+  }else{sv.setOptions(s.o);lastLeg='';renderLegend()}
 }
 function clamp(x){return x<0?0:x>1?1:x}
 var tick=false;
@@ -13711,7 +13818,8 @@ function update(){
   }
   setStep(idx);
   var t=clamp((prog-0.12)/0.76);
-  sv.setT(t);
+  wantT=t;
+  if(!trans){sv.setT(t);lastT=t}
   tread.textContent='t = '+t.toFixed(2);
 }
 function req(){if(!tick){tick=true;requestAnimationFrame(update)}}
@@ -13747,11 +13855,11 @@ function fullName(fam,n){return fam==='lucide'?n:fam+':'+n}
 var P0=pick('lucide',[['bug','bird'],['sun','moon']],5);
 var cur={fam:'lucide',from:P0[0],to:P0[1]};
 var feel='spring',dur=600;
-var FEELS=[['smooth','Smooth','No overshoot'],['spring','Spring','One wobble'],['bouncy','Bouncy','Big wobble']];
+var FEELS=[['smooth','Smooth','No overshoot'],['spring','Spring','One wobble'],['elastic','Elastic','Many wobbles']];
 /* the curve of an easing as a small glyph: the three feels are told apart without reading */
 function curveSVG(id){
   var f=(K.engine.easings&&K.engine.easings[id])||function(t){return t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2},W=56,H=28,y0=H-4,y1=4+(H-8)*0.27,d='';
-  for(var i=0;i<=40;i++){var t=i/40,y=y0-(y0-y1)*f(t)/1.37*1.0;y=Math.max(1,Math.min(H-1,y0-(y0-4)*f(t)/1.45));d+=(i?'L':'M')+(2+t*(W-4)).toFixed(1)+' '+y.toFixed(1)}
+  for(var i=0;i<=40;i++){var t=i/40,y=y0-(y0-y1)*f(t)/1.37*1.0;y=Math.max(1,Math.min(H-1,y0-(y0-4)*f(t)/1.6));d+=(i?'L':'M')+(2+t*(W-4)).toFixed(1)+' '+y.toFixed(1)}
   return '<svg class="fcurve" viewBox="0 0 '+W+' '+H+'" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+d+'"/></svg>';
 }
 function endsHTML(){return '<span class="fends" aria-hidden="true">'+K.iconSVG(cur.from,cur.fam,18)+'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>'+K.iconSVG(cur.to,cur.fam,18)+'</span>'}
@@ -13791,9 +13899,10 @@ ub.addEventListener('click',function(){uon=!uon;useSync();um.setAttribute('name'
 var TECH_MS=1800;
 var tech=K.colorView($('#pgstage'),{from:cur.from,to:cur.to,family:cur.fam,t:0,color:true,dots:true,ties:true,loop:!RM,duration:TECH_MS,easing:feel,planEasing:true});
 if(RM)tech.setT(1);
-var strip=K.frameStrip($('#pgstrip'),{from:cur.from,to:cur.to,family:cur.fam,frames:9,size:44,color:true,planEasing:true,easing:feel,onPick:function(t){tech.setOptions({loop:false});tech.pause();tech.setT(t);strip.setActive(t)}});
-$('#pplay').addEventListener('click',function(){strip.setActive(null);tech.setOptions({loop:false});tech.setT(0);tech.play()});
-function techSync(){tech.setOptions({easing:feel});strip.setOptions({easing:feel})}
+var techTimer=0;
+function techLoop(){strip.setActive(null);tech.setT(0);tech.setOptions({loop:true})}
+var strip=K.frameStrip($('#pgstrip'),{from:cur.from,to:cur.to,family:cur.fam,frames:9,size:44,color:true,planEasing:true,easing:feel,onPick:function(t){clearTimeout(techTimer);tech.setOptions({loop:false});tech.pause();tech.setT(t);strip.setActive(t);if(!RM)techTimer=setTimeout(techLoop,3000)}});
+function techSync(){clearTimeout(techTimer);tech.setOptions({easing:feel});strip.setOptions({easing:feel});if(!RM)techLoop()}
 function setFeel(id,focus){feel=id;markFeel(focus);useSync();techSync();renderSnip()}
 tiles.forEach(function(t,i){
   t.btn.addEventListener('click',function(){setFeel(t.id)});
@@ -13811,7 +13920,7 @@ function applyPair(a,b,fam){
   tiles.forEach(function(t){if(RM){t.view.setOptions({loop:false});t.view.setT(1)}else{t.view.setT(0);t.view.setOptions({loop:true})}});
   cur={fam:inf.family,from:inf.from,to:inf.to};
   tech.pause();tech.setPair(inf.from,inf.to,inf.family);if(RM){tech.setOptions({loop:false});tech.setT(1)}else{tech.setT(0);tech.setOptions({loop:true})}
-  strip.set(inf.from,inf.to,inf.family);strip.setActive(null);
+  clearTimeout(techTimer);strip.set(inf.from,inf.to,inf.family);strip.setActive(null);
   tiles.forEach(function(t){var e=t.btn.querySelector('.fends');if(e)e.outerHTML=endsHTML()});
   useReset();
 }
