@@ -61,18 +61,29 @@ input[type=range],input[type=checkbox]{accent-color:var(--ink)}
 .wb .note{font-size:12px;color:var(--sec)}
 .wb .i{width:10px;height:10px;border-radius:50%}
 .btns{padding:56px 0 72px;border-top:1px solid var(--border)}
-.bgroups{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
-@media (max-width:1100px){.bgroups{grid-template-columns:minmax(0,1fr)}}
-.bgroup{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;min-width:0}
-.bgroup h4{margin:0 0 12px;font-family:var(--mono);font-size:12px;font-weight:500;color:var(--sec)}
-.brow{display:flex;flex-wrap:nowrap;gap:6px}
-@media (max-width:399px){.brow{flex-wrap:wrap}}
-.b{display:inline-flex;align-items:center;gap:6px;border-radius:10px;padding:8px 11px;font-size:14px;font-weight:600;cursor:pointer;border:1px solid transparent;line-height:1}
-.b.solid{background:var(--ink);color:#fff}
-.b.outline{background:#fff;color:var(--ink);border-color:var(--border)}
-.b.ghost{background:transparent;color:var(--ink)}
-.b.ghost:hover,.b.outline:hover,.b.icon:hover{background:var(--pill)}
-.b.icon{width:40px;height:40px;padding:0;justify-content:center;background:#fff;color:var(--ink);border-color:var(--border)}
+#uses{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+#uses .ex-tile:last-child{grid-column:1/-1}
+@media (min-width:900px){#uses{grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}#uses .ex-tile:last-child{grid-column:auto}}
+.ex-tile{display:flex;flex-direction:column;gap:10px;border:1px solid var(--border);border-radius:12px;background:var(--surface);padding:10px;min-width:0}
+.ex-stage{background:#fff;border:1px solid var(--border);border-radius:10px;min-height:132px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:10px;min-width:0}
+.ex-lbl{font-size:14px;font-weight:600;color:var(--ink);line-height:1.3}
+#uses .ub{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 14px;border-radius:10px;border:1px solid var(--border);background:#fff;color:var(--ink);font-size:15px;font-weight:600;line-height:1;cursor:pointer;white-space:nowrap;max-width:100%}
+#uses .ub:hover{background:var(--pill)}
+#uses .ub:active{transform:scale(.98)}
+#uses .ub.icon{width:44px;padding:0}
+#uses .ub[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+#uses .spin morph-icon{animation:exspin 1s linear infinite}
+@keyframes exspin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){#uses .spin morph-icon{animation:none}#uses .ub:active{transform:none}}
+#uses .sw{position:relative;flex:none;width:76px;height:44px;border-radius:999px;border:1px solid var(--border);background:var(--pill);padding:0;cursor:pointer;transition:background .2s}
+#uses .sw .knob{position:absolute;top:3px;left:3px;width:36px;height:36px;border-radius:50%;background:#fff;border:1px solid var(--border);display:grid;place-items:center;transition:transform .25s cubic-bezier(.2,.8,.2,1)}
+#uses .sw[aria-checked="true"]{background:var(--accent);border-color:var(--accent)}
+#uses .sw[aria-checked="true"] .knob{transform:translateX(32px)}
+@media (prefers-reduced-motion:reduce){#uses .sw,#uses .sw .knob{transition:none}}
+#uses .field{display:flex;align-items:center;border:1px solid var(--border);border-radius:10px;background:#fff;padding-right:2px;min-width:0;width:100%}
+#uses .field input{flex:1;min-width:0;border:0;background:none;padding:0 6px 0 8px;height:44px;font-size:13px;outline:none}
+#uses .field:focus-within{border-color:var(--ink)}
+#uses .field .ub{border:0;background:none}
 .b morph-icon{color:inherit}
 .lab{display:inline-grid;text-align:left}
 .lab>span{grid-area:1/1}
@@ -112,6 +123,7 @@ input[type=range],input[type=checkbox]{accent-color:var(--ink)}
 .step ul{margin:0;padding-left:1.1em;font-family:Georgia,serif;font-size:18px;color:var(--sec);max-width:28em;display:flex;flex-direction:column;gap:6px}
 /* sections */
 section.blk{padding:80px 0;border-top:1px solid var(--border)}
+section.how .story{border-top:0;padding-top:0}
 .head{display:flex;justify-content:space-between;align-items:end;gap:16px;flex-wrap:wrap;margin-bottom:32px}
 .head p{font-family:Georgia,serif;color:var(--sec);margin-top:8px;font-size:18px}
 .wall{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:12px}
@@ -160,12 +172,25 @@ section.blk{padding:80px 0;border-top:1px solid var(--border)}
 #play .sel select{-webkit-appearance:none;appearance:none;background:#fff;padding:0 36px 0 12px;height:44px;min-width:180px;border:1px solid var(--border);border-radius:10px;cursor:pointer;width:100%}
 #play .sel morph-icon{position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--sec)}
 #play .picker{border:1px solid var(--border);border-radius:12px;background:#fff;padding:10px;display:flex;flex-direction:column;gap:8px}
-#play .picker[hidden]{display:none}
+#play .picker[hidden],#play .pk-back[hidden]{display:none}
+/* desktop: a popover next to the tile that opened it (JS sets top and left). Fixed, so nothing in the page moves. */
+#play .picker{position:fixed;z-index:40;width:520px;max-width:calc(100vw - 16px);box-shadow:0 8px 32px rgba(0,0,0,.14),0 1px 3px rgba(0,0,0,.08);outline:none}
+#play .pk-handle{display:none}
+#play .pk-back{display:none}
+@media (max-width:640px){
+  /* phone: a bottom sheet over a dimmed page (guide C4.R3) */
+  #play .pk-back{display:block;position:fixed;inset:0;z-index:39;background:rgba(0,0,0,.4)}
+  #play .picker{left:0;right:0;top:auto;bottom:0;width:auto;max-width:none;height:70vh;height:70dvh;border-radius:16px 16px 0 0;border-width:1px 0 0;padding:6px 12px max(12px,env(safe-area-inset-bottom,0px));box-shadow:0 -8px 32px rgba(0,0,0,.18)}
+  #play .pk-handle{display:block;align-self:center;width:44px;height:20px;margin:0 0 -4px;cursor:grab;touch-action:none;position:relative}
+  #play .pk-handle::after{content:"";position:absolute;left:0;right:0;top:8px;height:4px;border-radius:2px;background:var(--border)}
+  #play .picker .pk-grid{flex:1 1 auto;min-height:0;max-height:none;align-content:start}
+  #play .pk-x{padding:10px}
+}
 #play .pk-top{display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:600;color:var(--ink)}
 #play .pk-x{display:flex;border:0;background:none;padding:6px;border-radius:6px;color:var(--sec);cursor:pointer}
 #play .pk-x:hover{background:var(--pill);color:var(--ink)}
 #play .picker input[type=search]{padding:10px 12px;border:1px solid var(--border);border-radius:10px;width:100%;min-width:0;font-size:15px;background:#fff}
-#play .pk-grid{position:relative;display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:4px;max-height:264px;overflow-y:auto;overscroll-behavior:contain}
+#play .pk-grid{position:relative;display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:4px;max-height:var(--pk-gh,264px);overflow-y:auto;overscroll-behavior:contain}
 #play .tile{aspect-ratio:1;display:grid;place-items:center;border:0;border-radius:8px;background:none;color:var(--ink);cursor:pointer;padding:0}
 #play .tile:hover{background:var(--pill)}
 #play .tile[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
@@ -177,11 +202,11 @@ section.blk{padding:80px 0;border-top:1px solid var(--border)}
 #play .feel{display:flex;flex-direction:column;align-items:center;gap:8px;min-width:0;padding:16px 12px 14px;border:1px solid var(--border);border-radius:12px;background:#fff;color:var(--ink);cursor:pointer;font:inherit;text-align:center}
 #play .feel:hover{background:var(--surface)}
 #play .feel[aria-checked="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
-#play .fstage{width:min(100%,148px);aspect-ratio:1;color:var(--ink)}
+#play .fstage{width:min(75%,111px);aspect-ratio:1;color:var(--ink)}
 #play .fname{font-size:16px;font-weight:700;color:var(--ink);line-height:1.2}
 #play .fends{display:flex;align-items:center;gap:6px;color:var(--sec)}
-#play .fends svg{width:18px;height:18px}
-#play .fcurve{width:56px;height:28px;color:var(--ink)}
+#play .fends svg{width:14px;height:14px}
+#play .fcurve{width:42px;height:21px;color:var(--ink)}
 #play .use{display:flex;align-items:center;gap:12px}
 #play .dur{display:grid;grid-template-columns:auto minmax(0,1fr) 5.5em;gap:12px;align-items:center;font-size:14px;color:var(--sec)}
 #play .dur .mono{font-family:var(--mono);font-size:13px;color:var(--ink);text-align:right}
@@ -242,7 +267,7 @@ footer{padding:32px 0 64px;border-top:1px solid var(--border);color:var(--sec);f
 <div class="wrap">
   <nav>
     <b>shapcn</b>
-    <div><a href="#buttons">Buttons</a><a href="#play">Playground</a><a href="#install">Install</a></div>
+    <div><a href="#examples">Examples</a><a href="#play">Playground</a><a href="#install">Install</a></div>
   </nav>
   <header class="hero">
     <div>
@@ -257,18 +282,88 @@ footer{padding:32px 0 64px;border-top:1px solid var(--border);color:var(--sec);f
     <div class="cmp">
       <div class="cmp-row">
         <figure><figcaption><span class="tag">Old</span>Sloptweening</figcaption><div class="stage" id="hplain" role="img" aria-label="Old: sloptweening of two icons"></div><p class="how">Every point slides to a point, all at once.</p></figure>
-        <figure><figcaption><span class="tag new">New</span>Shape-aware tweening</figcaption><div class="stage" id="hink" role="img" aria-label="New: shape-aware tweening of the same two icons"></div><p class="how">Rigged first. Parts move in order.</p></figure>
+        <figure><figcaption><span class="tag new">New</span>Shape-aware morph</figcaption><div class="stage" id="hink" role="img" aria-label="New: shape-aware tweening of the same two icons"></div><p class="how">Rigged first. Parts move in order.</p></figure>
       </div>
       <div class="scrub"><input type="range" id="hrange" min="0" max="1" step="0.01" value="0" aria-label="Moment of the morph"></div>
     </div>
   </header>
-  <section class="btns" id="buttons" aria-labelledby="btns-h">
-    <div class="head"><div><h2 id="btns-h">In your buttons</h2><p>Tap any button. The icon changes with shape-aware tweening.</p></div></div>
-    <div class="bgroups" id="uses"></div>
+  <section class="btns" id="examples" aria-labelledby="btns-h">
+    <div class="head"><div><h2 id="btns-h">Examples</h2><p>Tap any example. The icon changes with shape-aware tweening.</p></div></div>
+    <div id="uses"></div>
   </section>
 </div>
 
-<div class="wrap">
+<section class="blk" id="play">
+  <div class="wrap">
+    <div class="head"><h2>Playground</h2></div>
+    <div class="pgrid">
+    <figure class="tech">
+      <div class="stage" id="pgstage" role="img" aria-label="The technique: each shape in its own color"></div>
+      <div class="pgstrip" id="pgstrip"></div>
+      <figcaption><button type="button" class="btn" id="pplay">Play</button><span>Each color is one shape. Slowed down so you can watch.</span></figcaption>
+    </figure>
+    <ol class="psteps">
+      <li class="pstep" aria-labelledby="pq0">
+        <span class="num" aria-hidden="true">1</span>
+        <div class="body">
+          <h3 id="pq0">Library</h3>
+          <div class="tools">
+            <select id="pfam" aria-label="Library"></select>
+          </div>
+        </div>
+      </li>
+      <li class="pstep" aria-labelledby="pq1">
+        <span class="num" aria-hidden="true">2</span>
+        <div class="body">
+          <h3 id="pq1">Which two icons?</h3>
+          <div class="picks">
+            <button type="button" class="pickbtn" id="pfromb" aria-expanded="false" aria-controls="picker"><span class="pk-tx"><small>From</small><span class="pn"></span></span></button>
+            <button type="button" class="btn sq" id="pswap" aria-label="Swap the two icons"></button>
+            <button type="button" class="pickbtn" id="ptob" aria-expanded="false" aria-controls="picker"><span class="pk-tx"><small>To</small><span class="pn"></span></span></button>
+          </div>
+          <div class="tools">
+            <button type="button" class="btn" id="prand">Random pair</button>
+          </div>
+          <div class="pk-back" id="pkback" hidden></div>
+          <div class="picker" id="picker" role="dialog" aria-labelledby="pkh" tabindex="-1" hidden>
+            <div class="pk-handle" id="pkhandle" aria-hidden="true"></div>
+            <div class="pk-top"><span id="pkh">Pick the start icon</span><button type="button" class="pk-x" id="pkx" aria-label="Close the icon picker"></button></div>
+            <input type="search" id="pkq" placeholder="Search icons" aria-label="Search icons" autocomplete="off" spellcheck="false">
+            <div class="pk-grid" id="pkgrid"></div>
+            <p class="pk-n" id="pkn" aria-live="polite"></p>
+          </div>
+        </div>
+      </li>
+      <li class="pstep" aria-labelledby="pq3">
+        <span class="num" aria-hidden="true">3</span>
+        <div class="body">
+          <h3 id="pq3">How should it feel?</h3>
+          <div class="feels" id="pfeels" role="radiogroup" aria-labelledby="pq3"></div>
+          <div class="dur"><label for="pdur">Duration</label><input type="range" id="pdur" min="300" max="1500" step="100" value="600"><span id="pdurv" class="mono">600 ms</span></div>
+          <div class="use"><button type="button" class="btn" id="puse" aria-label="Try the morph on a button"><span class="lab"><span>Try it</span></span></button></div>
+        </div>
+      </li>
+      <li class="pstep" aria-labelledby="pq4">
+        <span class="num" aria-hidden="true">4</span>
+        <div class="body">
+          <h3 id="pq4">Ready to copy?</h3>
+          <div class="tabs" role="tablist" aria-label="Code format"><button type="button" class="tab" role="tab" aria-selected="true" data-k="html">HTML</button><button type="button" class="tab" role="tab" aria-selected="false" data-k="react">React</button></div>
+          <pre class="snipcode"><code id="psnip"></code></pre>
+          <p class="note">The shapcn package is not live yet. This is the planned API.</p>
+        </div>
+      </li>
+    </ol>
+    </div>
+    <div class="act" id="pact">
+      <button type="button" class="btn primary" id="pcopy">Copy code</button>
+      <p class="done" id="pdone" aria-live="polite"></p>
+    </div>
+  </div>
+</section>
+
+<section class="blk how" id="how" aria-labelledby="how-h">
+  <div class="wrap">
+    <div class="head"><h2 id="how-h">How it works</h2></div>
   <div class="story" id="story">
     <div class="stage-col">
       <div class="pair">
@@ -287,75 +382,17 @@ footer{padding:32px 0 64px;border-top:1px solid var(--border);color:var(--sec);f
       <div class="step" data-i="5"><span class="n">6 of 6</span><h3>When?</h3><p>The rig sets the order. Old parts go in, deepest first: antennae into the head, then the head into the body. The body changes. New parts grow out in reverse order, deepest last.</p></div>
       </div>
   </div>
-</div>
-
-<section class="blk" id="play">
-  <div class="wrap">
-    <div class="head"><h2>Playground</h2></div>
-    <div class="pgrid">
-    <figure class="tech">
-      <div class="stage" id="pgstage" role="img" aria-label="The technique: each shape in its own color"></div>
-      <div class="pgstrip" id="pgstrip"></div>
-      <figcaption><button type="button" class="btn" id="pplay">Play</button><span>Each color is one shape. Slowed down so you can watch.</span></figcaption>
-    </figure>
-    <ol class="psteps">
-      <li class="pstep" aria-labelledby="pq1">
-        <span class="num" aria-hidden="true">1</span>
-        <div class="body">
-          <h3 id="pq1">Which two icons?</h3>
-          <div class="picks">
-            <button type="button" class="pickbtn" id="pfromb" aria-expanded="false" aria-controls="picker"><span class="pk-tx"><small>From</small><span class="pn"></span></span></button>
-            <button type="button" class="btn sq" id="pswap" aria-label="Swap the two icons"></button>
-            <button type="button" class="pickbtn" id="ptob" aria-expanded="false" aria-controls="picker"><span class="pk-tx"><small>To</small><span class="pn"></span></span></button>
-          </div>
-          <div class="tools">
-            <label>Library<select id="pfam"></select></label>
-            <button type="button" class="btn" id="prand">Random pair</button>
-          </div>
-          <div class="picker" id="picker" role="dialog" aria-labelledby="pkh" hidden>
-            <div class="pk-top"><span id="pkh">Pick the start icon</span><button type="button" class="pk-x" id="pkx" aria-label="Close the icon picker"></button></div>
-            <input type="search" id="pkq" placeholder="Search icons" aria-label="Search icons" autocomplete="off" spellcheck="false">
-            <div class="pk-grid" id="pkgrid"></div>
-            <p class="pk-n" id="pkn" aria-live="polite"></p>
-          </div>
-        </div>
-      </li>
-      <li class="pstep" aria-labelledby="pq2">
-        <span class="num" aria-hidden="true">2</span>
-        <div class="body">
-          <h3 id="pq2">How should it feel?</h3>
-          <div class="feels" id="pfeels" role="radiogroup" aria-labelledby="pq2"></div>
-          <div class="dur"><label for="pdur">Duration</label><input type="range" id="pdur" min="300" max="1500" step="100" value="600"><span id="pdurv" class="mono">600 ms</span></div>
-          <div class="use"><button type="button" class="btn" id="puse" aria-label="Try the morph on a button"><span class="lab"><span>Try it</span></span></button></div>
-        </div>
-      </li>
-      <li class="pstep" aria-labelledby="pq3">
-        <span class="num" aria-hidden="true">3</span>
-        <div class="body">
-          <h3 id="pq3">Ready to copy?</h3>
-          <div class="tabs" role="tablist" aria-label="Code format"><button type="button" class="tab" role="tab" aria-selected="true" data-k="html">HTML</button><button type="button" class="tab" role="tab" aria-selected="false" data-k="react">React</button></div>
-          <pre class="snipcode"><code id="psnip"></code></pre>
-          <p class="note">The shapcn package is not live yet. This is the planned API.</p>
-        </div>
-      </li>
-    </ol>
-    </div>
-    <div class="act" id="pact">
-      <button type="button" class="btn primary" id="pcopy">Copy code</button>
-      <p class="done" id="pdone" aria-live="polite"></p>
-    </div>
   </div>
 </section>
 
 <section class="blk" id="install">
   <div class="wrap">
-    <div class="head"><div><h2>Install</h2><p>The script tag works today. The npm package and the shadcn registry come next.</p></div></div>
+    <div class="head"><div><h2>Install</h2><p>The script tag works today. The npm package comes next.</p></div></div>
     <div class="inst">
-      <div class="code"><div><small>shadcn</small><code>npx shadcn@latest add @shapcn/morph-icon</code></div><button class="btn alt" type="button" data-copy="npx shadcn@latest add @shapcn/morph-icon">Copy</button></div>
       <div class="code"><div><small>Any site</small><code>&lt;script type="module" src="https://shapcn.com/morph-icon.js"&gt;&lt;/script&gt;
 &lt;morph-icon name="menu"&gt;&lt;/morph-icon&gt;</code></div><button class="btn alt" type="button" data-copy='<script type="module" src="https://shapcn.com/morph-icon.js"></script>
 <morph-icon name="menu"></morph-icon>'>Copy</button></div>
-      <div class="code"><div><small>Bundlers</small><code>npm i shapcn</code></div><button class="btn alt" type="button" data-copy="npm i shapcn">Copy</button></div>
+      <!-- <div class="code"><div><small>Bundlers</small><code>npm i shape-aware-morph</code></div><button class="btn alt" type="button" data-copy="npm i shape-aware-morph">Copy</button></div> -->
     </div>
   </div>
 </section>
@@ -13533,12 +13570,75 @@ var hplain=K.blendView($('#hplain'),{from:HP[0],to:HP[1],family:'lucide',color:f
   if(!RM)requestAnimationFrame(tick);
 })();
 
-/* button examples: four button styles, the icon morphs on tap */
-var groups=[
- ['Solid','solid',[['send','check','Send','Sent'],['copy','check','Copy','Copied'],['download','check','Download','Done']]],
- ['Outline','outline',[['sun','moon','Light','Dark'],['bell','bell-off','Notify','Muted'],['bookmark','bookmark-check','Save','Saved']]],
- ['Icon only','icon',[['menu','x','Menu'],['panel-left-open','panel-left-close','Sidebar'],['chevron-down','chevron-up','Expand'],['mic','mic-off','Microphone']]]
+/* examples: five live tiles (rules C2.R2 same anatomy, C2.R4 44 px, C3.R2 equal peers, C8.R1 wait on the button, C8.R5 state in the label) */
+function el(t,c,h){var e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e}
+function swallow(p){if(p&&p.catch)p.catch(function(){})}
+function xicon(name,size,at){var m=document.createElement('morph-icon');m.setAttribute('name',name);m.setAttribute('size',String(size||20));m.setAttribute('aria-hidden','true');if(at)for(var k in at)m.setAttribute(k,at[k]);return m}
+function sbtn(cfg){
+  var St=cfg.states,n=St.length,cur=0,timer=0,busy=0;
+  var b=el('button',cfg.cls||'ub');b.type='button';
+  var ic=xicon(St[0].icon,cfg.size||20,{duration:cfg.duration||520});
+  if(cfg.sw){var knob=el('span','knob');knob.appendChild(ic);b.appendChild(knob);b.setAttribute('role','switch')}
+  else b.appendChild(ic);
+  var spans=[];
+  if(St.some(function(s){return s.label})){
+    var lab=el('span','lab');
+    St.forEach(function(s,i){var sp=el('span',i?'off':'');sp.textContent=s.label||'';spans.push(sp);lab.appendChild(sp)});
+    b.appendChild(lab);
+  }
+  function paint(i){
+    var s=St[i];
+    if(spans.length)spans.forEach(function(sp,k){sp.className=k===i?'':'off'});
+    var a=s.aria||cfg.aria||'';if(a)b.setAttribute('aria-label',a);
+    if(cfg.sw)b.setAttribute('aria-checked',s.on?'true':'false');
+    else if(cfg.press)b.setAttribute('aria-pressed',s.on?'true':'false');
+    b.classList.toggle('spin',!!s.spin);
+  }
+  function apply(i,prev){
+    var s=St[i],p=St[prev],o={};
+    if(s.fx)o.effect=s.fx;
+    busy=Date.now()+(cfg.duration||520)+120;
+    if(s.icon&&p.icon){ if(s.icon!==p.icon)swallow(ic.morphTo(s.icon)); }
+    else if(s.icon)swallow(ic.show(s.icon,o));
+    else if(p.icon)swallow(ic.hide(o));
+    paint(i);
+    if(cfg.onState)cfg.onState(i,s,b);
+  }
+  function go(i){
+    var prev=cur;cur=i;apply(i,prev);
+    clearTimeout(timer);
+    if(St[i].ms)timer=setTimeout(function(){go((cur+1)%n)},St[i].ms);
+  }
+  b.addEventListener('click',function(){ if(St[cur].ms)return; go((cur+1)%n); });
+  b.addEventListener('pointerenter',function(e){
+    if(RM||e.pointerType==='touch'||Date.now()<busy||!St[cur].icon||St[cur].spin)return;
+    swallow(ic.playAlive());
+  });
+  paint(0);
+  return b;
+}
+function S(icon,label,x){var o={icon:icon,label:label};if(x)for(var k in x)o[k]=x[k];return o}
+function stack(){var w=el('div');w.style.cssText='display:flex;flex-direction:column;align-items:center;gap:10px;width:100%';Array.prototype.slice.call(arguments).forEach(function(a){w.appendChild(a)});return w}
+var EXAMPLES=[
+ ['btn-delete','Delete item',function(){return sbtn({states:[S('trash','Delete'),S('','Deleting',{fx:'erase',ms:260}),S('check','Deleted',{fx:'draw',ms:1500}),S('','Delete',{fx:'scale',ms:240})]})}],
+ ['btn-follow','Follow person',function(){return sbtn({press:true,states:[S('user-plus','Follow'),S('user-check','Following',{on:true})]})}],
+ ['tog-theme','Light and dark',function(){
+   var t=sbtn({cls:'sw',sw:true,aria:'Dark theme',states:[S('sun',null),S('moon',null,{on:true})]});
+   return stack(t)}],
+ ['tog-password','Show password',function(){
+   var f=el('div','field'),inp=el('input');inp.type='password';inp.value='k7#Vq2!m';inp.setAttribute('autocomplete','off');inp.setAttribute('aria-label','Password');
+   var b=sbtn({cls:'ub icon',aria:'Show password',onState:function(i){inp.type=i?'text':'password'},states:[S('eye',null,{aria:'Show password'}),S('eye-off',null,{aria:'Hide password'})]});
+   f.appendChild(inp);f.appendChild(b);return f}],
+ ['st-upload','Upload file',function(){return sbtn({states:[S('upload','Upload'),S('loader','Uploading',{ms:1500,spin:true}),S('check','Uploaded',{ms:1500})]})}]
 ];
+var ub=$('#uses');
+EXAMPLES.forEach(function(t){
+  var tile=el('div','ex-tile'),stage=el('div','ex-stage');
+  tile.setAttribute('data-id',t[0]);
+  stage.appendChild(t[2]());
+  tile.appendChild(stage);tile.appendChild(el('div','ex-lbl',t[1]));
+  ub.appendChild(tile);
+});
 /* a pressed button gives a little and springs back (a mouse press holds the dip; a key press plays it whole) */
 function pressBounce(b){
   if(RM||!b.animate)return;
@@ -13553,42 +13653,6 @@ function pressBounce(b){
     down=false;stop();b.animate(f,{duration:420,easing:'ease-out'});
   });
 }
-var ub=$('#uses');
-groups.forEach(function(g){
-  var box=document.createElement('div');box.className='bgroup';
-  var h=document.createElement('h4');h.textContent=g[0];box.appendChild(h);
-  var row=document.createElement('div');row.className='brow';box.appendChild(row);
-  g[2].forEach(function(u){
-    if(!has('lucide',u[0])||!has('lucide',u[1]))return;
-    var b=document.createElement('button');b.type='button';b.className='b '+g[1];b.setAttribute('aria-pressed','false');
-    var m=document.createElement('morph-icon');m.setAttribute('name',u[0]);m.setAttribute('size','18');m.setAttribute('duration','420');m.setAttribute('easing','spring');
-    b.appendChild(m);
-    var la=null,lb=null;
-    if(g[1]==='icon'){b.setAttribute('aria-label',u[2]);b.title=u[2];}
-    else{
-      /* both labels share one grid cell, so the button keeps the width of the longer one */
-      var lab=document.createElement('span');lab.className='lab';
-      la=document.createElement('span');la.textContent=u[2];
-      lb=document.createElement('span');lb.textContent=u[3];lb.className='off';lb.setAttribute('aria-hidden','true');
-      lab.appendChild(la);lab.appendChild(lb);b.appendChild(lab);
-    }
-    var on=false,back=0;
-    function set(v){
-      on=v;m.setAttribute('name',on?u[1]:u[0]);
-      if(la){la.className=on?'off':'';lb.className=on?'':'off';la.setAttribute('aria-hidden',String(on));lb.setAttribute('aria-hidden',String(!on))}
-      b.setAttribute('aria-pressed',String(on));
-    }
-    /* solid buttons are one-shot actions (send, copy, download): they show the result, then reset by themselves */
-    b.addEventListener('click',function(){
-      if(g[1]==='solid'){clearTimeout(back);set(true);back=setTimeout(function(){set(false)},1600)}
-      else set(!on);
-    });
-    pressBounce(b);
-    row.appendChild(b);
-  });
-  ub.appendChild(box);
-});
-
 /* story */
 var SP=pick('lucide',[['folder-key','bug'],['smartphone-nfc','cloud-fog']],5);
 var TWIN=pick('lucide',[['play','pause']],2);
@@ -13771,7 +13835,7 @@ $('#pdur').addEventListener('input',function(e){dur=+e.target.value;$('#pdurv').
 })();
 
 /* icon pickers: pick From and To by sight; the button icon morphs to the new pick */
-var pk=$('#picker'),pkq=$('#pkq'),pkg=$('#pkgrid'),pkFor=null,pkList=[],pkShown=0;
+var pkb=$('#pkback'),pk=$('#picker'),pkq=$('#pkq'),pkg=$('#pkgrid'),pkFor=null,pkList=[],pkShown=0;
 var pickBtns={from:$('#pfromb'),to:$('#ptob')};
 Object.keys(pickBtns).forEach(function(k){
   var b=pickBtns[k];b.insertBefore(mi(fullName(cur.fam,cur[k]),36),b.firstChild);
@@ -13788,15 +13852,34 @@ function showPicks(){
   });
 }
 function openPicker(k){
-  pkFor=k;pk.hidden=false;
+  pkFor=k;pk.hidden=false;pkb.hidden=!phone();
+  pk.setAttribute('aria-modal',String(phone()));
   Object.keys(pickBtns).forEach(function(o){pickBtns[o].setAttribute('aria-expanded',String(o===k))});
   $('#pkh').textContent=k==='from'?'Pick the start icon':'Pick the end icon';
-  pkq.value='';filterPicker();
-  var c=pkg.querySelector('[aria-pressed="true"]');(c||pkq).focus({preventScroll:true});
+  pkq.value='';placePicker();filterPicker();placePicker();
+  var c=pkg.querySelector('[aria-pressed="true"]');
   if(c)pkg.scrollTop=c.offsetTop-(pkg.clientHeight-c.offsetHeight)/2;
+  /* desktop: the search field gets focus. Phone: the sheet gets focus, so the keyboard stays down. */
+  if(phone())pk.focus({preventScroll:true});else pkq.focus({preventScroll:true});
 }
+function phone(){return window.matchMedia('(max-width:640px)').matches}
+/* desktop: below the clicked tile, left edge for From and right edge for To, kept inside the viewport */
+function placePicker(){
+  if(pk.hidden||!pkFor)return;
+  if(phone()){pk.style.top=pk.style.left=pk.style.width='';pk.style.removeProperty('--pk-gh');pkb.hidden=false;return}
+  pkb.hidden=true;
+  var r=pickBtns[pkFor].getBoundingClientRect(),vw=document.documentElement.clientWidth,vh=window.innerHeight,m=8,gap=6;
+  var w=Math.min(520,vw-2*m);pk.style.width=w+'px';
+  var x=pkFor==='to'?r.right-w:r.left;x=Math.max(m,Math.min(x,vw-w-m));
+  var chrome=pk.offsetHeight-pkg.offsetHeight||116,below=vh-r.bottom-gap-m,above=r.top-gap-m,want=264+chrome;
+  var up=below<chrome+160&&above>below,room=Math.max(120,up?above:below),gh=Math.max(96,Math.min(264,room-chrome));
+  pk.style.setProperty('--pk-gh',gh+'px');
+  var h=Math.min(gh,pkg.scrollHeight)+chrome;pk.style.left=x+'px';pk.style.top=Math.max(m,up?r.top-gap-h:r.bottom+gap)+'px';
+}
+window.addEventListener('resize',placePicker);
+window.addEventListener('scroll',placePicker,{passive:true});
 function closePicker(back){
-  if(pk.hidden)return;pk.hidden=true;
+  if(pk.hidden)return;pk.hidden=true;pkb.hidden=true;pk.style.transform='';
   Object.keys(pickBtns).forEach(function(o){pickBtns[o].setAttribute('aria-expanded','false')});
   if(back&&pkFor)pickBtns[pkFor].focus();
 }
@@ -13805,20 +13888,39 @@ function filterPicker(){
   pkList=q?all.filter(function(n){return n.indexOf(q)>=0}):all;
   /* keep the current pick in the first batch, so it shows as selected */
   var ci=pkList.indexOf(cur[pkFor]);
-  pkg.innerHTML='';pkShown=0;morePicker(Math.max(120,ci+1));pkg.scrollTop=0;
+  pkg.innerHTML='';pkShown=0;morePicker(Math.max(120,ci+1));pkg.scrollTop=0;rove(pkg.querySelector('[aria-pressed="true"]')||pkg.querySelector('.tile'));
   $('#pkn').textContent=pkList.length?pkList.length+' icons':'No icons match "'+q+'"';
 }
+/* roving tabindex: the grid is one Tab stop; arrow keys move inside it */
+function rove(t){var o=pkg.querySelector('.tile[tabindex="0"]');if(o&&o!==t)o.tabIndex=-1;if(t)t.tabIndex=0}
+pkg.addEventListener('focusin',function(e){var t=e.target.closest('.tile');if(t)rove(t)});
+/* Tab stays inside the open picker; Shift+Tab from the first control goes to the last */
+pk.addEventListener('keydown',function(e){
+  if(e.key!=='Tab')return;
+  var f=Array.prototype.filter.call(pk.querySelectorAll('button,input,[tabindex="0"]'),function(n){return n.tabIndex>=0&&!n.disabled});
+  if(!f.length)return;var a=f[0],z=f[f.length-1];
+  if(e.shiftKey&&(document.activeElement===a||document.activeElement===pk)){e.preventDefault();z.focus()}
+  else if(!e.shiftKey&&document.activeElement===z){e.preventDefault();a.focus()}
+});
+/* phone: pull the handle down to close */
+(function(){
+  var h=$('#pkhandle'),y0=null;
+  h.addEventListener('pointerdown',function(e){y0=e.clientY;h.setPointerCapture(e.pointerId);pk.style.transition='none'});
+  h.addEventListener('pointermove',function(e){if(y0==null)return;pk.style.transform='translateY('+Math.max(0,e.clientY-y0)+'px)'});
+  function end(e){if(y0==null)return;var d=e.clientY-y0;y0=null;pk.style.transition='';if(d>80)closePicker(true);else pk.style.transform=''}
+  h.addEventListener('pointerup',end);h.addEventListener('pointercancel',end);
+})();
 function morePicker(n){
   var c=cur[pkFor],fam=pf.value,end=Math.min(pkList.length,pkShown+(n||120)),frag=document.createDocumentFragment();
   for(var i=pkShown;i<end;i++){
     var name=pkList[i],t=document.createElement('button');
-    t.type='button';t.className='tile';t.title=name;t.setAttribute('aria-label',name);t.setAttribute('aria-pressed',String(name===c));t.setAttribute('data-n',name);
+    t.type='button';t.className='tile';t.title=name;t.setAttribute('aria-label',name);t.setAttribute('aria-pressed',String(name===c));t.setAttribute('data-n',name);t.tabIndex=-1;
     t.innerHTML=K.iconSVG(name,fam,24);frag.appendChild(t);
   }
   pkg.appendChild(frag);pkShown=end;
 }
 pkg.addEventListener('scroll',function(){if(pkShown<pkList.length&&pkg.scrollTop+pkg.clientHeight>pkg.scrollHeight-120)morePicker()},{passive:true});
-pkq.addEventListener('input',filterPicker);
+pkq.addEventListener('input',function(){filterPicker();placePicker()});
 function choose(name){if(pkFor==='from')usePair(name,cur.to);else usePair(cur.from,name);closePicker(true)}
 pkg.addEventListener('click',function(e){var t=e.target.closest('.tile');if(t)choose(t.getAttribute('data-n'))});
 pkq.addEventListener('keydown',function(e){
