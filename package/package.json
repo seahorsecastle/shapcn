@@ -1,0 +1,124 @@
+{
+  "name": "shape-aware-morph",
+  "version": "0.1.0",
+  "description": "Morph any icon into any other, the way an animator would.",
+  "type": "module",
+  "license": "MIT",
+  "homepage": "https://shapcn.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/seahorsecastle/shapcn.git"
+  },
+  "bugs": "https://github.com/seahorsecastle/shapcn/issues",
+  "keywords": [
+    "icons",
+    "morph",
+    "animation",
+    "svg",
+    "lucide",
+    "web-component",
+    "custom-element",
+    "shadcn"
+  ],
+  "main": "./index.js",
+  "module": "./index.js",
+  "types": "./index.d.ts",
+  "unpkg": "./dist/morph-icon.js",
+  "jsdelivr": "./dist/morph-icon.js",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    },
+    "./lucide": {
+      "types": "./lucide.d.ts",
+      "default": "./lucide.js"
+    },
+    "./tabler-outline": {
+      "types": "./tabler-outline.d.ts",
+      "default": "./tabler-outline.js"
+    },
+    "./tabler-filled": {
+      "types": "./tabler-filled.d.ts",
+      "default": "./tabler-filled.js"
+    },
+    "./hugeicons": {
+      "types": "./hugeicons.d.ts",
+      "default": "./hugeicons.js"
+    },
+    "./phosphor-thin-s": {
+      "types": "./phosphor-thin-s.d.ts",
+      "default": "./phosphor-thin-s.js"
+    },
+    "./phosphor-light-s": {
+      "types": "./phosphor-light-s.d.ts",
+      "default": "./phosphor-light-s.js"
+    },
+    "./phosphor-regular-s": {
+      "types": "./phosphor-regular-s.d.ts",
+      "default": "./phosphor-regular-s.js"
+    },
+    "./phosphor-bold-s": {
+      "types": "./phosphor-bold-s.d.ts",
+      "default": "./phosphor-bold-s.js"
+    },
+    "./phosphor-fill": {
+      "types": "./phosphor-fill.d.ts",
+      "default": "./phosphor-fill.js"
+    },
+    "./phosphor-duotone-s": {
+      "types": "./phosphor-duotone-s.d.ts",
+      "default": "./phosphor-duotone-s.js"
+    },
+    "./remix-line-s": {
+      "types": "./remix-line-s.d.ts",
+      "default": "./remix-line-s.js"
+    },
+    "./remix-fill": {
+      "types": "./remix-fill.d.ts",
+      "default": "./remix-fill.js"
+    },
+    "./morph-icon.js": "./dist/morph-icon.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "core.js",
+    "render.js",
+    "effects.js",
+    "dom.js",
+    "regions.js",
+    "svg.js",
+    "families-meta.js",
+    "lucide.js",
+    "tabler-outline.js",
+    "tabler-filled.js",
+    "hugeicons.js",
+    "phosphor-thin-s.js",
+    "phosphor-light-s.js",
+    "phosphor-regular-s.js",
+    "phosphor-bold-s.js",
+    "phosphor-fill.js",
+    "phosphor-duotone-s.js",
+    "remix-line-s.js",
+    "remix-fill.js",
+    "index.d.ts",
+    "dist/",
+    "README.md",
+    "LICENSE",
+    "*.d.ts"
+  ],
+  "sideEffects": [
+    "./index.js",
+    "./core.js"
+  ],
+  "scripts": {
+    "gen": "node scripts/gen-icons.mjs",
+    "build": "node scripts/gen-icons.mjs && node scripts/build-dist.mjs",
+    "test": "node --test test/*.test.mjs",
+    "prepublishOnly": "npm run build"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
