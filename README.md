@@ -17,6 +17,12 @@ Site and playground: https://shapcn.com
 
 Easing: `smooth`, `spring`, or `bouncy`. The script includes all Lucide icons.
 
+Add `hover="alive"` and the icon comes alive a little on hover or focus, then rests (it does not change into another icon):
+
+```html
+<morph-icon name="sun" hover="alive"></morph-icon>
+```
+
 The npm package and the shadcn registry come next.
 
 ## This repo
