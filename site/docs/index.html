@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>shapcn docs</title>
+<meta name="description" content="Docs for shapcn, the icon morph engine. Change the name of a morph-icon element and the icon moves like an animator drew it.">
+<meta name="color-scheme" content="light">
+<link rel="canonical" href="https://shapcn.com/docs">
+<link rel="alternate" type="text/markdown" href="https://shapcn.com/docs.md">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="shapcn">
+<meta property="og:title" content="shapcn docs">
+<meta property="og:description" content="Docs for shapcn, the icon morph engine. Change the name of a morph-icon element and the icon moves like an animator drew it.">
+<meta property="og:url" content="https://shapcn.com/docs">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="shapcn docs">
+<meta name="twitter:description" content="Docs for shapcn, the icon morph engine. Change the name of a morph-icon element and the icon moves like an animator drew it.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/docs/docs.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="top"><a class="brand" href="/">shapcn</a></header>
+<div class="shell">
+<aside>
+<nav class="side" aria-label="Docs"><a href="/docs" aria-current="page">Overview</a><a href="/docs/install">Install</a><a href="/docs/element">Element</a><a href="/docs/feel">Feel</a><a href="/docs/effects">Effects</a><a href="/docs/icons">Icons</a><a href="/docs/javascript">JavaScript</a><a href="/docs/frameworks">Frameworks</a><a href="/docs/accessibility">Accessibility</a></nav>
+<details class="mnav"><summary>Docs menu</summary><nav aria-label="Docs menu"><a href="/docs" aria-current="page">Overview</a><a href="/docs/install">Install</a><a href="/docs/element">Element</a><a href="/docs/feel">Feel</a><a href="/docs/effects">Effects</a><a href="/docs/icons">Icons</a><a href="/docs/javascript">JavaScript</a><a href="/docs/frameworks">Frameworks</a><a href="/docs/accessibility">Accessibility</a></nav></details>
+</aside>
+<main id="main">
+<noscript><p class="ns">The live demos need JavaScript. The text and code work without it.</p></noscript>
+<h1 id="docs">Docs</h1>
+<p class="lead">shapcn morphs one icon into another. Change the <code>name</code> of a <code>&lt;morph-icon&gt;</code> element and the icon moves the way an animator would draw it. No animation is pre-built. The engine plans every frame when you ask.</p>
+<h2 id="quick-start">Quick start</h2>
+<p>Add one script and one tag. The script defines the <code>&lt;morph-icon&gt;</code> element and loads the Lucide icons.</p>
+<div class="demo" data-cycle="menu,x"><morph-icon name="menu" size="48"></morph-icon></div>
+<pre><code class="language-html">&lt;script type=&quot;module&quot; src=&quot;https://shapcn.com/morph-icon.js&quot;&gt;&lt;/script&gt;
+&lt;morph-icon name=&quot;menu&quot; size=&quot;48&quot;&gt;&lt;/morph-icon&gt;</code></pre>
+<p>The demo above changes its name every two seconds. To do the same in your page, set the <code>name</code> attribute.</p>
+<pre><code class="language-html">&lt;script type=&quot;module&quot; src=&quot;https://shapcn.com/morph-icon.js&quot;&gt;&lt;/script&gt;
+&lt;morph-icon name=&quot;menu&quot; size=&quot;48&quot;&gt;&lt;/morph-icon&gt;
+&lt;script type=&quot;module&quot;&gt;
+  const icon = document.querySelector('morph-icon');
+  setTimeout(() =&gt; icon.setAttribute('name', 'x'), 1000);
+&lt;/script&gt;</code></pre>
+<p>The icon morphs from <code>menu</code> to <code>x</code>. Set <code>name</code> to an empty string and the icon hides with an effect. Set a name again and it shows.</p>
+<h2 id="what-is-in-the-docs">What is in the docs</h2>
+<ul><li><a href="/docs/install">Install</a>: the script tag and the npm package.</li><li><a href="/docs/element">Element</a>: every attribute of <code>&lt;morph-icon&gt;</code>, with a live demo each.</li><li><a href="/docs/feel">Feel</a>: the easing presets <code>smooth</code>, <code>spring</code>, and <code>elastic</code>.</li><li><a href="/docs/effects">Effects</a>: the seven ways an icon appears and disappears.</li><li><a href="/docs/icons">Icons</a>: Lucide, the 12 icon sets, and your own icons.</li><li><a href="/docs/javascript">JavaScript</a>: <code>planMorph</code>, <code>planAlive</code>, <code>alive</code>, <code>defineMorphIcon</code>, and <code>registerIcons</code>.</li><li><a href="/docs/frameworks">Frameworks</a>: plain HTML, React, Vue, and Svelte.</li><li><a href="/docs/accessibility">Accessibility</a>: reduced motion, focus, and aria.</li></ul>
+<h2 id="markdown-and-llm-files">Markdown and LLM files</h2>
+<p>Every page has a Markdown twin. Add <code>.md</code> to the path, for example <code>/docs/element.md</code>. The file <a href="/llms.txt">/llms.txt</a> lists the pages. The file <a href="/llms-full.txt">/llms-full.txt</a> holds all pages in one file.</p>
+<p class="twin"><a href="/docs.md">Markdown version</a></p>
+</main>
+</div>
+<script defer src="/morph-icon.js"></script>
+<script defer src="/docs/docs.js"></script>
+</body>
+</html>

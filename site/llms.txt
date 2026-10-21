@@ -1,0 +1,22 @@
+# shapcn
+
+> Morph any icon into any other, the way an animator would. Change the name of a <morph-icon> element and the engine plans every frame.
+
+The script tag works today. The npm package is `shape-aware-morph` (coming soon).
+
+## Docs
+
+- [Overview](https://shapcn.com/docs.md): Docs for shapcn, the icon morph engine. Change the name of a morph-icon element and the icon moves like an animator drew it.
+- [Install](https://shapcn.com/docs/install.md): Install shapcn with one script tag. The npm package is shape-aware-morph.
+- [Element](https://shapcn.com/docs/element.md): Every attribute of the morph-icon element, with its default and a live demo.
+- [Feel](https://shapcn.com/docs/feel.md): The three easing presets of shapcn, smooth, spring, and elastic, with a live side-by-side demo.
+- [Effects](https://shapcn.com/docs/effects.md): The seven appear and disappear effects of shapcn, with a live demo of each.
+- [Icons](https://shapcn.com/docs/icons.md): Lucide is built in. Twelve icon sets ship as separate modules. Register your own SVG icons with registerSVGs.
+- [JavaScript](https://shapcn.com/docs/javascript.md): The stable JavaScript API of shapcn, planMorph, planAlive, alive, defineMorphIcon, and registerIcons.
+- [Frameworks](https://shapcn.com/docs/frameworks.md): Use shapcn in plain HTML, React, Vue, and Svelte. Types for React come with the package.
+- [Accessibility](https://shapcn.com/docs/accessibility.md): How shapcn handles reduced motion and keyboard focus, and how to add aria labels to icons.
+
+## Optional
+
+- [All docs in one file](https://shapcn.com/llms-full.txt)
+- [Landing page](https://shapcn.com/)

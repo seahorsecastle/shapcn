@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Icons | shapcn docs</title>
+<meta name="description" content="Lucide is built in. Twelve icon sets ship as separate modules. Register your own SVG icons with registerSVGs.">
+<meta name="color-scheme" content="light">
+<link rel="canonical" href="https://shapcn.com/docs/icons">
+<link rel="alternate" type="text/markdown" href="https://shapcn.com/docs/icons.md">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="shapcn">
+<meta property="og:title" content="Icons | shapcn docs">
+<meta property="og:description" content="Lucide is built in. Twelve icon sets ship as separate modules. Register your own SVG icons with registerSVGs.">
+<meta property="og:url" content="https://shapcn.com/docs/icons">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Icons | shapcn docs">
+<meta name="twitter:description" content="Lucide is built in. Twelve icon sets ship as separate modules. Register your own SVG icons with registerSVGs.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/docs/docs.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="top"><a class="brand" href="/">shapcn</a></header>
+<div class="shell">
+<aside>
+<nav class="side" aria-label="Docs"><a href="/docs">Overview</a><a href="/docs/install">Install</a><a href="/docs/element">Element</a><a href="/docs/feel">Feel</a><a href="/docs/effects">Effects</a><a href="/docs/icons" aria-current="page">Icons</a><a href="/docs/javascript">JavaScript</a><a href="/docs/frameworks">Frameworks</a><a href="/docs/accessibility">Accessibility</a></nav>
+<details class="mnav"><summary>Docs menu</summary><nav aria-label="Docs menu"><a href="/docs">Overview</a><a href="/docs/install">Install</a><a href="/docs/element">Element</a><a href="/docs/feel">Feel</a><a href="/docs/effects">Effects</a><a href="/docs/icons" aria-current="page">Icons</a><a href="/docs/javascript">JavaScript</a><a href="/docs/frameworks">Frameworks</a><a href="/docs/accessibility">Accessibility</a></nav></details>
+</aside>
+<main id="main">
+<noscript><p class="ns">The live demos need JavaScript. The text and code work without it.</p></noscript>
+<h1 id="icons">Icons</h1>
+<p class="lead">The examples that import <code>shape-aware-morph</code> use the npm package. It is not published yet. See <a href="/docs/install">Install</a>.</p>
+<h2 id="lucide">Lucide</h2>
+<p>The script tag build has the 1,858 Lucide icons built in. Use any Lucide name.</p>
+<div class="demo" data-cycle="camera,video"><morph-icon name="camera" size="48"></morph-icon></div>
+<pre><code class="language-html">&lt;morph-icon name=&quot;camera&quot; size=&quot;48&quot;&gt;&lt;/morph-icon&gt;</code></pre>
+<p>With the npm package, <code>registerLucide()</code> registers all the Lucide icons. It loads them on demand. To ship fewer icons, import the ones you use. Each icon family is its own module with one named export per icon (camelCase). A bundler drops the icons you do not import.</p>
+<pre><code class="language-html">&lt;script type=&quot;module&quot;&gt;
+  import { defineMorphIcon, registerIcons } from 'shape-aware-morph';
+  import { mic, micOff } from 'shape-aware-morph/lucide';
+
+  registerIcons({ mic, 'mic-off': micOff });
+  defineMorphIcon();
+
+  const icon = document.createElement('morph-icon');
+  icon.setAttribute('name', 'mic');
+  document.body.append(icon);
+  setTimeout(() =&gt; icon.setAttribute('name', 'mic-off'), 500);
+&lt;/script&gt;</code></pre>
+<p>The default export of <code>shape-aware-morph/lucide</code> is the whole map keyed by the original names (<code>import all from 'shape-aware-morph/lucide'</code>).</p>
+<p>Names that start with a digit, or that are reserved words, get a leading underscore in the export (for example <code>_24Hours</code>).</p>
+<h2 id="the-12-sets">The 12 sets</h2>
+<p>All 12 sets are separate modules. The icon names inside <code>&lt;morph-icon&gt;</code> are <code>&lt;family&gt;:&lt;name&gt;</code>, for example <code>tabler-outline:bell</code>. Lucide names have no prefix.</p>
+<div class="tablewrap"><table><thead><tr><th>Import path</th><th>Style</th><th>License</th></tr></thead><tbody><tr><td><code>shape-aware-morph/lucide</code></td><td>stroke</td><td>Lucide (ISC)</td></tr><tr><td><code>shape-aware-morph/tabler-outline</code></td><td>stroke</td><td>Tabler (MIT)</td></tr><tr><td><code>shape-aware-morph/tabler-filled</code></td><td>fill</td><td>Tabler (MIT)</td></tr><tr><td><code>shape-aware-morph/hugeicons</code></td><td>stroke</td><td>Hugeicons (MIT)</td></tr><tr><td><code>shape-aware-morph/phosphor-thin-s</code></td><td>stroke</td><td>Phosphor (MIT)</td></tr><tr><td><code>shape-aware-morph/phosphor-light-s</code></td><td>stroke</td><td>Phosphor (MIT)</td></tr><tr><td><code>shape-aware-morph/phosphor-regular-s</code></td><td>stroke</td><td>Phosphor (MIT)</td></tr><tr><td><code>shape-aware-morph/phosphor-bold-s</code></td><td>stroke</td><td>Phosphor (MIT)</td></tr><tr><td><code>shape-aware-morph/phosphor-fill</code></td><td>fill</td><td>Phosphor (MIT)</td></tr><tr><td><code>shape-aware-morph/phosphor-duotone-s</code></td><td>stroke</td><td>Phosphor (MIT)</td></tr><tr><td><code>shape-aware-morph/remix-line-s</code></td><td>stroke</td><td>Remix (Remix Icon License 1.0)</td></tr><tr><td><code>shape-aware-morph/remix-fill</code></td><td>fill</td><td>Remix (Remix Icon License 1.0)</td></tr></tbody></table></div>
+<h2 id="registerfamilyicons">registerFamilyIcons</h2>
+<p>The sets other than Lucide use <code>registerFamilyIcons(family, icons)</code>. Pass the family id and a map of the icons you import. The names become <code>&lt;family&gt;:&lt;name&gt;</code>.</p>
+<pre><code class="language-html">&lt;script type=&quot;module&quot;&gt;
+  import { defineMorphIcon, registerFamilyIcons } from 'shape-aware-morph';
+  import { bell, bellOff } from 'shape-aware-morph/tabler-outline';
+
+  registerFamilyIcons('tabler-outline', { bell, 'bell-off': bellOff });
+  defineMorphIcon();
+
+  const icon = document.createElement('morph-icon');
+  icon.setAttribute('name', 'tabler-outline:bell');
+  document.body.append(icon);
+  setTimeout(() =&gt; icon.setAttribute('name', 'tabler-outline:bell-off'), 500);
+&lt;/script&gt;</code></pre>
+<p>The default export of a family module is the full family spec. You can pass it to <code>registerFamilyFile</code>. An unknown family id throws an error that lists the known ids.</p>
+<h2 id="your-own-icons">Your own icons</h2>
+<p><code>registerSVGs</code> reads plain SVG markup. It supports <code>path</code>, <code>line</code>, <code>polyline</code>, <code>polygon</code>, <code>circle</code>, <code>ellipse</code>, and <code>rect</code>. It scales the <code>viewBox</code> to the 24 grid. It returns the list of registered names.</p>
+<pre><code class="language-js">import { registerLucide, registerSVGs, planMorph } from 'shape-aware-morph';
+
+await registerLucide();
+
+const names = registerSVGs({
+  'my-spark': '&lt;svg xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;24&quot; height=&quot;24&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot; stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot;&gt;&lt;path d=&quot;M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6.1L12 16.6 6.6 19.6l1.2-6.1L3.3 9.3l6.1-.7z&quot;/&gt;&lt;/svg&gt;',
+}, { kind: 'stroke' });
+
+console.log(names);   // ['my-spark']
+const plan = planMorph('my-spark', 'heart');   // the name works like any icon name
+console.log(plan.frame(0.5).length &gt; 0);       // true
+// &lt;morph-icon name=&quot;my-spark&quot;&gt;</code></pre>
+<ul><li><code>kind: 'stroke'</code> (default): outline icons with stroke width 2. Names stay as you give them.</li><li><code>kind: 'fill'</code>: solid icons. Names become <code>svg:&lt;name&gt;</code>. Use <code>family: 'mine'</code> to choose the prefix.</li><li>A <code>viewBox</code> with a non-zero origin is not supported. Groups, transforms, and styles are ignored.</li><li>Solid shapes (<code>circle</code>, <code>ellipse</code>, <code>rect</code>, <code>polygon</code>) become paths, so they morph like path icons.</li><li>An invalid path, a <code>kind</code> other than <code>'stroke'</code> or <code>'fill'</code>, or a non-object argument throws an error.</li></ul>
+<p>Your own icons then morph with every other icon.</p>
+<pre><code class="language-html">&lt;script type=&quot;module&quot;&gt;
+  import { defineMorphIcon, registerLucide, registerSVGs } from 'shape-aware-morph';
+
+  await registerLucide();
+  registerSVGs({
+    'my-spark': '&lt;svg viewBox=&quot;0 0 24 24&quot;&gt;&lt;path d=&quot;M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6.1L12 16.6 6.6 19.6l1.2-6.1L3.3 9.3l6.1-.7z&quot;/&gt;&lt;/svg&gt;',
+  });
+  defineMorphIcon();
+
+  const icon = document.createElement('morph-icon');
+  icon.setAttribute('name', 'my-spark');
+  document.body.append(icon);
+  setTimeout(() =&gt; icon.setAttribute('name', 'heart'), 500);
+&lt;/script&gt;</code></pre>
+<p>For a lower-level path, <code>registerIcons(map)</code> takes icon nodes in the Lucide format. See <a href="/docs/javascript">JavaScript</a>.</p>
+<p class="twin"><a href="/docs/icons.md">Markdown version</a></p>
+</main>
+</div>
+<script defer src="/morph-icon.js"></script>
+<script defer src="/docs/docs.js"></script>
+</body>
+</html>

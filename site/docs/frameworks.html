@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frameworks | shapcn docs</title>
+<meta name="description" content="Use shapcn in plain HTML, React, Vue, and Svelte. Types for React come with the package.">
+<meta name="color-scheme" content="light">
+<link rel="canonical" href="https://shapcn.com/docs/frameworks">
+<link rel="alternate" type="text/markdown" href="https://shapcn.com/docs/frameworks.md">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="shapcn">
+<meta property="og:title" content="Frameworks | shapcn docs">
+<meta property="og:description" content="Use shapcn in plain HTML, React, Vue, and Svelte. Types for React come with the package.">
+<meta property="og:url" content="https://shapcn.com/docs/frameworks">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Frameworks | shapcn docs">
+<meta name="twitter:description" content="Use shapcn in plain HTML, React, Vue, and Svelte. Types for React come with the package.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/docs/docs.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="top"><a class="brand" href="/">shapcn</a></header>
+<div class="shell">
+<aside>
+<nav class="side" aria-label="Docs"><a href="/docs">Overview</a><a href="/docs/install">Install</a><a href="/docs/element">Element</a><a href="/docs/feel">Feel</a><a href="/docs/effects">Effects</a><a href="/docs/icons">Icons</a><a href="/docs/javascript">JavaScript</a><a href="/docs/frameworks" aria-current="page">Frameworks</a><a href="/docs/accessibility">Accessibility</a></nav>
+<details class="mnav"><summary>Docs menu</summary><nav aria-label="Docs menu"><a href="/docs">Overview</a><a href="/docs/install">Install</a><a href="/docs/element">Element</a><a href="/docs/feel">Feel</a><a href="/docs/effects">Effects</a><a href="/docs/icons">Icons</a><a href="/docs/javascript">JavaScript</a><a href="/docs/frameworks" aria-current="page">Frameworks</a><a href="/docs/accessibility">Accessibility</a></nav></details>
+</aside>
+<main id="main">
+<noscript><p class="ns">The live demos need JavaScript. The text and code work without it.</p></noscript>
+<h1 id="frameworks">Frameworks</h1>
+<p class="lead">The examples that import <code>shape-aware-morph</code> use the npm package. It is not published yet. See <a href="/docs/install">Install</a>.</p>
+<p><code>&lt;morph-icon&gt;</code> is a custom element, so it works in any framework. Define the element once, then use the tag.</p>
+<h2 id="plain-html">Plain HTML</h2>
+<p>Use the script tag. Set the <code>name</code> attribute, or the <code>name</code> property, or call a method.</p>
+<pre><code class="language-html">&lt;script type=&quot;module&quot; src=&quot;https://shapcn.com/morph-icon.js&quot;&gt;&lt;/script&gt;
+&lt;button id=&quot;toggle&quot; type=&quot;button&quot; aria-label=&quot;Toggle microphone&quot;&gt;
+  &lt;morph-icon name=&quot;mic&quot; size=&quot;32&quot; duration=&quot;420&quot;&gt;&lt;/morph-icon&gt;
+&lt;/button&gt;
+&lt;script type=&quot;module&quot;&gt;
+  const icon = document.querySelector('morph-icon');
+  let on = true;
+  document.getElementById('toggle').addEventListener('click', () =&gt; {
+    on = !on;
+    icon.name = on ? 'mic' : 'mic-off';   // same as setAttribute('name', ...)
+  });
+  await icon.morphTo('mic-off');          // methods return a Promise
+&lt;/script&gt;</code></pre>
+<h2 id="react">React</h2>
+<p>Define the element once, then use the tag. Use string or number values for the attributes.</p>
+<pre><code class="language-tsx">import { useEffect, useState } from 'react';
+import { registerLucide, defineMorphIcon } from 'shape-aware-morph';
+
+export function MicButton() {
+  const [on, setOn] = useState(true);
+  useEffect(() =&gt; {
+    registerLucide().then(() =&gt; defineMorphIcon());
+  }, []);
+  return (
+    &lt;button onClick={() =&gt; setOn(!on)}&gt;
+      &lt;morph-icon name={on ? 'mic' : 'mic-off'} duration=&quot;420&quot; /&gt;
+    &lt;/button&gt;
+  );
+}</code></pre>
+<p>Call <code>defineMorphIcon</code> in an effect. On the server there is no DOM, and <code>defineMorphIcon</code> returns <code>null</code>.</p>
+<h3 id="react-types">React types</h3>
+<p>The package types add <code>morph-icon</code> to <code>JSX.IntrinsicElements</code>, to the <code>react</code> module, and to <code>HTMLElementTagNameMap</code>. Any import of <code>shape-aware-morph</code> brings them in. The attributes are typed as <code>name</code>, <code>size</code>, <code>color</code>, <code>stroke-width</code>, <code>duration</code>, <code>easing</code>, <code>stagger</code>, <code>effect</code>, and <code>hover</code>, plus <code>class</code>, <code>className</code>, <code>style</code>, <code>id</code>, <code>key</code>, and <code>ref</code>.</p>
+<p>To call the methods, type the ref with <code>MorphIconElement</code>.</p>
+<pre><code class="language-tsx">import { useRef } from 'react';
+import type { MorphIconElement } from 'shape-aware-morph';
+
+export function Hide() {
+  const ref = useRef&lt;MorphIconElement&gt;(null);
+  return (
+    &lt;&gt;
+      &lt;morph-icon ref={ref} name=&quot;heart&quot; /&gt;
+      &lt;button onClick={() =&gt; ref.current?.hide()}&gt;Hide&lt;/button&gt;
+    &lt;/&gt;
+  );
+}</code></pre>
+<h2 id="vue">Vue</h2>
+<p>Tell Vue that <code>morph-icon</code> is a custom element. Then use the tag.</p>
+<pre><code class="language-ts">// vite.config.ts
+import vue from '@vitejs/plugin-vue';
+
+export default {
+  plugins: [
+    vue({ template: { compilerOptions: { isCustomElement: (tag) =&gt; tag === 'morph-icon' } } }),
+  ],
+};</code></pre>
+<pre><code class="language-vue">&lt;script setup&gt;
+import { ref, onMounted } from 'vue';
+import { registerLucide, defineMorphIcon } from 'shape-aware-morph';
+
+const on = ref(true);
+onMounted(async () =&gt; {
+  await registerLucide();
+  defineMorphIcon();
+});
+&lt;/script&gt;
+
+&lt;template&gt;
+  &lt;button @click=&quot;on = !on&quot;&gt;
+    &lt;morph-icon :name=&quot;on ? 'mic' : 'mic-off'&quot; duration=&quot;420&quot; /&gt;
+  &lt;/button&gt;
+&lt;/template&gt;</code></pre>
+<h2 id="svelte">Svelte</h2>
+<p>Svelte passes the tag through. Define the element when the component mounts.</p>
+<pre><code class="language-svelte">&lt;script&gt;
+  import { onMount } from 'svelte';
+  import { registerLucide, defineMorphIcon } from 'shape-aware-morph';
+
+  let on = true;
+  onMount(async () =&gt; {
+    await registerLucide();
+    defineMorphIcon();
+  });
+&lt;/script&gt;
+
+&lt;button on:click={() =&gt; (on = !on)}&gt;
+  &lt;morph-icon name={on ? 'mic' : 'mic-off'} duration=&quot;420&quot;&gt;&lt;/morph-icon&gt;
+&lt;/button&gt;</code></pre>
+<h2 id="custom-element-rules">Custom element rules</h2>
+<ul><li>The element reads its attributes when it connects. It then watches the nine attributes in <a href="/docs/element">Element</a>.</li><li>The element keeps its state if you move it in the DOM. It stops any running frame when it disconnects.</li><li>Define the element before or after you add the tag. A tag that exists before the definition upgrades with its attributes.</li></ul>
+<p class="twin"><a href="/docs/frameworks.md">Markdown version</a></p>
+</main>
+</div>
+<script defer src="/morph-icon.js"></script>
+<script defer src="/docs/docs.js"></script>
+</body>
+</html>

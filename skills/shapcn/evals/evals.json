@@ -1,0 +1,8 @@
+{
+  "skill_name": "shapcn",
+  "evals": [
+    { "id": 1, "prompt": "Make a plain HTML play/pause toggle button where the icon morphs. No build step.", "expected": "Script tag https://shapcn.com/morph-icon.js, <morph-icon name=play>, name changes to pause on click, aria-label on button, aria-hidden on icon." },
+    { "id": 2, "prompt": "In my React app add a theme switch button where the sun morphs into a moon with a spring feel.", "expected": "<morph-icon name={dark?'moon':'sun'} easing=\"spring\">, aria-label on button, element defined only in browser, checks npm view first." },
+    { "id": 3, "prompt": "I have my own SVG icon (a star). Make it morph into a lucide heart.", "expected": "registerSVGs on npm path, or window.shapcn.registerIcons with nodes on script path; lucide heart name is 'heart'." }
+  ]
+}

@@ -25,6 +25,12 @@ Add `hover="alive"` and the icon comes alive a little on hover or focus, then re
 
 The npm package and the shadcn registry come next.
 
+## Use with AI coding agents
+
+This repo has an agent skill at `skills/shapcn`. It teaches a coding agent how to install shapcn, use `<morph-icon>` in HTML, React, Vue and Svelte, register icons, and fix common errors. Copy the `skills/shapcn` folder into your agent's skills folder (for Claude Code: `.claude/skills/shapcn`).
+
+A plain-text summary for any model is at https://shapcn.com/llms.txt.
+
 ## This repo
 
 - `site/` is the website at shapcn.com.
