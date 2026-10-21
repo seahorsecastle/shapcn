@@ -74,6 +74,7 @@ const DEFAULTS = Object.freeze({
   facingAnchor: true, // R10-1: a part that scales in or out uses the facing point of its parent as the anchor (false: the nearest parent point, round 9c)
   twins: true, // R10-2: a new (or leaving) part that has the same shape as a part that stays slides out from behind it (or in behind it)
   twinScale: 0.5, // R10-2: the size of a closed twin when it is behind its sibling
+  keepStatic: true, // R14: parts of strokes that are the same in both icons (an overlap) are cut out and stay put; the rest draws or erases out of them (stroke icons only)
   twinBalance: 'center', // R12-1: 'center' (the group spreads about its centroid; default since R12c), 'split' (the twins start as copies of the sibling's old shape), 'off' (11f)
   staging: true, // exits, then the main change, then entries (Rule 5)
   stageOut: Object.freeze([0, 0.4]), // window of the exits
@@ -1186,6 +1187,18 @@ function nearestOnStroke(q, x, y) {
   return _near;
 }
 
+// R14-10: one shared all-visible mask per length. A slot's `visF`/`visT` is only read, so an all-1 mask can be shared by every
+// slot of that length instead of two fresh Uint8Arrays per slot (this is the largest per-plan allocation).
+const ONES_MASK = new Map();
+function onesMask(n) {
+  let a = ONES_MASK.get(n);
+  if (!a) {
+    a = new Uint8Array(n).fill(1);
+    ONES_MASK.set(n, a);
+  }
+  return a;
+}
+
 // R11b-1: a fast "is the visible line of stroke q within TOUCH_R11 of (x, y)?" test. A grid of 2-unit cells over the box of q holds,
 // for each cell, the visible segments within TOUCH_R11 of it (cached on the stroke). Same answer as
 // nearestOnStroke(q, x, y).d <= TOUCH_R11 + 1e-6, without the scan over every segment.
@@ -1247,6 +1260,63 @@ function nearWithin(q, x, y) {
     if (ex * ex + ey * ey <= R2) return true;
   }
   return false;
+}
+
+// R14-10: nearestOnStroke through the segment grid (R11b-1). Same answer as nearestOnStroke whenever the nearest segment lies
+// within the grid radius (R = TOUCH_R11 = 1 unit); a point further out gets d = Infinity. The keep pre-pass only asks whether a
+// point lies within KEEP_DIST (0.15), so this is exact there and much cheaper than the full scan over every segment.
+function nearestOnStrokeNear(q, x, y) {
+  const g = strokeGrid(q);
+  const P = q.pts;
+  if (!g.any) {
+    const d = Math.hypot(x - P[0], y - P[1]);
+    _near.d = d;
+    _near.x = P[0];
+    _near.y = P[1];
+    _near.i = 0;
+    _near.f = 0;
+    return _near;
+  }
+  const cx = Math.floor((x - g.x0) / GRID_CS);
+  const cy = Math.floor((y - g.y0) / GRID_CS);
+  const lst = cx < 0 || cy < 0 || cx >= g.nx || cy >= g.ny ? null : g.cells[cy * g.nx + cx];
+  if (!lst) {
+    _near.d = Infinity;
+    return _near;
+  }
+  const n = P.length / 2;
+  let bd = Infinity;
+  let bi = 0;
+  let bf = 0;
+  let bx = P[0];
+  let by = P[1];
+  for (let k = 0; k < lst.length; k++) {
+    const i = lst[k];
+    const j = (i + 1) % n;
+    const ax = P[2 * i];
+    const ay = P[2 * i + 1];
+    const dx = P[2 * j] - ax;
+    const dy = P[2 * j + 1] - ay;
+    const l2 = dx * dx + dy * dy;
+    let t = l2 > 0 ? ((x - ax) * dx + (y - ay) * dy) / l2 : 0;
+    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    const ex = ax + t * dx;
+    const ey = ay + t * dy;
+    const d = Math.hypot(x - ex, y - ey);
+    if (d < bd) {
+      bd = d;
+      bx = ex;
+      by = ey;
+      bi = i;
+      bf = t;
+    }
+  }
+  _near.d = bd;
+  _near.x = bx;
+  _near.y = by;
+  _near.i = bi;
+  _near.f = bf;
+  return _near;
 }
 
 // Do the visible samples of stroke p come within TOUCH_R11 of the visible line of stroke q? (R11b-1: early exit, box prefilter.)
@@ -1720,7 +1790,7 @@ function buildTree(S) {
   const n = S.length;
   const wt = S.map(strokeWeight);
   const mx = wt.reduce((x, y) => Math.max(x, y), 0);
-  const tree = S.map((s, i) => ({ index: i, role: wt[i] >= 0.5 * mx ? 'core' : 'part', parent: -1, level: -1, attach: null, contact: null, contacts: null, end: -1, arch2: false, mirror: -1, pair: -1, alone: false }));
+  const tree = S.map((s, i) => ({ index: i, role: S[i]._role === 'kept' ? 'core' : S[i]._role === 'changed' ? 'part' : wt[i] >= 0.5 * mx ? 'core' : 'part', parent: -1, level: -1, attach: null, contact: null, contacts: null, end: -1, arch2: false, mirror: -1, pair: -1, alone: false }));
   const touchCache = new Map();
   const touch = (p, q) => {
     const key = p * n + q;
@@ -1739,7 +1809,7 @@ function buildTree(S) {
         for (let q = 0; q < n; q++) {
           if (q === p || tree[q].level !== k) continue;
           if (!touch(p, q)) continue;
-          if (bq < 0 || wt[q] > wt[bq]) bq = q;
+          if (bq < 0 || (S[q]._role === 'kept' && S[bq]._role !== 'kept') || (S[q]._role === 'kept') === (S[bq]._role === 'kept') && wt[q] > wt[bq]) bq = q;
         }
         if (bq >= 0) {
           tree[p].level = k + 1;
@@ -1800,11 +1870,60 @@ function buildTree(S) {
     tree[root].parent = nearestCore(root);
     bfs(1);
   }
+  // R14 fix pass 4b: a part's parent is the piece (kept or changed) that holds its contact point. The search above prefers a
+  // kept piece, and among equal levels the heaviest, so a part whose contact lies on a neighbouring piece of the same cut stroke
+  // (the pieces share a seam) can land on the wrong piece; its anchor then sits off the part and the part leaves the parent line
+  // (t4_through). Reparent such a part to the cut piece that holds its contact point: it rides that piece, and leaves or enters
+  // with it (a deeper level, as R11 orders levels). Plans with no kept piece are not touched (the no-cut path equals round 13).
+  if (S.some((s) => s._role === 'kept')) {
+    const contactD = (p, q) => {
+      const b = closestApproach(S[p], S[q]);
+      return b ? b.d : Infinity;
+    };
+    const below = (q, p) => {
+      for (let g = 0, c = q; c >= 0 && g <= n; g++, c = tree[c].parent) if (c === p) return true;
+      return false;
+    };
+    for (let p = 0; p < n; p++) {
+      const t = tree[p];
+      if (t.role === 'core' || t.attach === 'free' || t.parent < 0) continue;
+      if (S[t.parent]._role !== 'kept' && S[t.parent]._role !== 'changed') continue;
+      let best = -1;
+      let bd = contactD(p, t.parent);
+      for (let q = 0; q < n; q++) {
+        if (q === p || q === t.parent || (S[q]._role !== 'changed' && S[q]._role !== 'kept') || tree[q].level < 0 || below(q, p)) continue;
+        if (!touch(p, q)) continue;
+        const d = contactD(p, q);
+        if (d < bd - 1e-9) {
+          bd = d;
+          best = q;
+        }
+      }
+      if (best >= 0) t.parent = best;
+    }
+    // The level follows the new parent (a parent first).
+    for (let guard = 0; guard < n; guard++) {
+      let change = false;
+      for (let p = 0; p < n; p++) {
+        const t = tree[p];
+        if (t.role === 'core' || t.parent < 0 || tree[t.parent].level < 0) continue;
+        const lv = tree[t.parent].level + 1;
+        if (t.level !== lv) {
+          t.level = lv;
+          change = true;
+        }
+      }
+      if (!change) break;
+    }
+  }
   // Attachment of every attached part to its parent.
   for (let p = 0; p < n; p++) {
     const t = tree[p];
     if (t.role === 'core' || t.attach === 'free' || t.parent < 0) continue;
-    attachNode(S, t, p, t.parent, null, false);
+    // R14 fix pass 3: a changed piece (a piece cut out of a stroke that has a kept run) attaches to the kept piece it joins
+    // with an 'end' attachment, never an arch (arch2). It joins the kept piece at the seam, so the seam end is the contact.
+    const kind = S[p]._role === 'changed' && S[t.parent]._role === 'kept' ? 'end' : null;
+    attachNode(S, t, p, t.parent, kind, false);
   }
   mirrorPairs(S, tree, wt, nearestCore, touch);
   return tree;
@@ -2665,13 +2784,16 @@ function evalLod(slot, tau, out) {
 // R13-2: um is the monotone progress (u, but 1 for good once u has reached 1; equal to u for an easing that stays in [0, 1]).
 // Every show, hide, draw, erase, and fade decision runs on um. fx (the easing info of the plan, or null) switches on the
 // follow-through of a rigid slot (R13-3), which runs on u with the slot gain slot._g (R13-6).
-function evalSlot(slot, u, tau, um = u, fx = null) {
+function evalSlot(slot, u, tau, um = u, fx = null, tg = null) {
   if (slot.motion === 'twin') return slot._split ? evalSplitTwin(slot, um) : evalTwin(slot, tau);
   if (slot.kind === 'exit' || slot.kind === 'enter') return evalAnchored(slot, um);
   const { F, T, M } = slot;
   const out = slot.buf;
   const pose = fx !== null && slot.motion === 'rigid' && !slot.lod;
-  if (u <= 0) out.set(F);
+  // R14-7: a kept piece is the from piece in every frame before t = 1 (0 px of motion) and the to piece at t = 1 (a switch of at
+  // most 0.25 units). tg is the global time (the slot's own tau reaches 1 early with a stagger).
+  if (slot.keep) out.set(tg !== null && tg >= 1 ? T : F);
+  else if (u <= 0) out.set(F);
   else if (u >= 1 && !(pose && u > 1)) out.set(T);
   else if (pose) {
     const past = tau >= fx.tc;
@@ -3478,7 +3600,7 @@ function buildPartSlot(kind, st, idx, o, K, cores, pre, att) {
     Z[2 * i] = z[0];
     Z[2 * i + 1] = z[1];
   }
-  const vis = P.vis || new Uint8Array(M - 1).fill(1);
+  const vis = P.vis || onesMask(M - 1);
   const slot = {
     kind,
     role: 'part',
@@ -3742,7 +3864,7 @@ function drawnEdges(par, te, easing, stagger) {
   let L;
   if (mover) L = par.kind === 'exit' ? par.F : par.T;
   else {
-    evalSlot(par, u, tau);
+    evalSlot(par, u, tau, u, null, te);
     L = par.buf;
   }
   for (let c = 1; c <= 2; c++) {
@@ -3943,7 +4065,7 @@ function buildTwinSlot(kind, st, idx, tw, o, small) {
     Q[2 * i] = c[0] + k * (R[2 * i] - c[0]);
     Q[2 * i + 1] = c[1] + k * (R[2 * i + 1] - c[1]);
   }
-  const vis = new Uint8Array(M - 1).fill(1);
+  const vis = onesMask(M - 1);
   const cp = meanPt(P, U);
   const slot = {
     kind,
@@ -4118,8 +4240,9 @@ function balanceTwins(slots, o) {
         continue;
       }
       // R12c-3: a sibling with the same shape and place in both icons (every point within 0.05 units of its partner point) stays still:
-      // no balance, and its twins keep the 11f behavior.
-      if (isStaticSlot(sib)) {
+      // no balance, and its twins keep the 11f behavior. R14 fix pass 4: a kept piece (R14-2, R14-7) is the same shape within the
+      // 0.15 keep tolerance but up to 0.25 units apart, so isStaticSlot misses it; a kept piece must not move before t = 1 either.
+      if (isStaticSlot(sib) || sib.keep) {
         cands.push({ sib, list, exit, dx: 0, dy: 0, active: false }); // only for the mirror link of the windows
         continue;
       }
@@ -4356,7 +4479,7 @@ function buildDrawSlot(kind, st, idx, o) {
     Z[2 * i] = ex;
     Z[2 * i + 1] = ey;
   }
-  const vis = P.vis || new Uint8Array(M - 1).fill(1);
+  const vis = P.vis || onesMask(M - 1);
   const slot = {
     kind,
     role: 'core',
@@ -5084,8 +5207,8 @@ function rulesMatching(A, B, coarseA, coarseB, K, o, turnPair) {
   const wB = B.map(strokeWeight);
   const mxA = wA.reduce((x, y) => Math.max(x, y), 0);
   const mxB = wB.reduce((x, y) => Math.max(x, y), 0);
-  const coreA = wA.map((w) => w >= 0.5 * mxA);
-  const coreB = wB.map((w) => w >= 0.5 * mxB);
+  const coreA = wA.map((w, i) => (A[i]._role === 'kept' ? true : A[i]._role === 'changed' ? false : w >= 0.5 * mxA));
+  const coreB = wB.map((w, j) => (B[j]._role === 'kept' ? true : B[j]._role === 'changed' ? false : w >= 0.5 * mxB));
   const raw = [];
   const tieOfA = new Map(); // R11-6: stroke index in A -> its tie record
   const tie = (i, j, role) => {
@@ -5093,6 +5216,7 @@ function rulesMatching(A, B, coarseA, coarseB, K, o, turnPair) {
     const rec = { kind: 'match', fi: i, ti: j, mode: r.mode, s: r.s, dir: r.dir, role };
     raw.push(rec);
     tieOfA.set(i, rec);
+    return rec;
   };
   if (turnPair) {
     for (let i = 0; i < n; i++) tie(i, turnPair[i], coreA[i] || coreB[turnPair[i]] ? 'core' : 'part');
@@ -5101,6 +5225,16 @@ function rulesMatching(A, B, coarseA, coarseB, K, o, turnPair) {
   const usedA = new Uint8Array(n);
   const usedB = new Uint8Array(m);
 
+  // R14: kept pieces (the overlap of two strokes) pair up and are static.
+  for (let i = 0; i < n; i++) {
+    const w = A[i]._keepWith;
+    if (!w) continue;
+    const j = B.indexOf(w);
+    if (j < 0 || usedA[i] || usedB[j]) continue;
+    usedA[i] = 1;
+    usedB[j] = 1;
+    tie(i, j, 'core').keep = true;
+  }
   // Static strokes: the same shape at the same place in both icons. They stay put and take no part in the rules.
   const cenA = coarseA.map((L, i) => centroidOf(L, A[i].closed));
   const cenB = coarseB.map((L, j) => centroidOf(L, B[j].closed));
@@ -6104,7 +6238,7 @@ function tileObject(obj, fit, o) {
 // Fields shared by all slots of the object planner.
 function objSlot(p) {
   const M = p.M;
-  const ones = () => new Uint8Array(M - 1).fill(1);
+  const ones = () => onesMask(M - 1);
   const slot = {
     kind: 'match',
     role: p.role,
@@ -6843,7 +6977,7 @@ function buildDetailSlot(kind, st, idx, o, K, cands) {
     Z[2 * i] = P[2 * iq];
     Z[2 * i + 1] = P[2 * iq + 1];
   }
-  const vis = P.vis || new Uint8Array(M - 1).fill(1);
+  const vis = P.vis || onesMask(M - 1);
   const slot = {
     kind,
     role: 'part',
@@ -7244,8 +7378,474 @@ function planMorph(from, to, opts = {}) {
   return planStrokes(toStrokes(from, o), toStrokes(to, o), o);
 }
 
+// ---------------------------------------------------------------------------
+// R14: keep what stays. A pre-pass before matching (stroke icons, rules matching, no objects).
+// A point of a stroke is kept when it lies within KEEP_DIST of a stroke of the other icon and the two tangents agree within
+// KEEP_ANGLE. A run of kept points at least KEEP_RUN long is a kept segment. Strokes with kept segments are cut into kept
+// pieces (paired with the piece of the other icon on the same line, static) and changed pieces (which hang on the kept piece
+// they join). A stroke is cut only when its paired kept length is at least KEEP_FRAC of its length.
+// ---------------------------------------------------------------------------
+
+const KEEP_DIST = 0.15;
+const KEEP_COS = Math.cos(20 * DEG);
+const KEEP_RUN = 1;
+const KEEP_FRAC = 0.25;
+const KEEP_STEP = 0.25;
+const KEEP_GAP = 0.5;
+const KEEP_COVER = 0.9;
+
+// Dense copy of a stroke: points at most KEEP_STEP apart (the geometry does not change), the corner flags, the segment visibility.
+function keepDensify(s) {
+  const P = s.pts;
+  const n0 = P.length / 2;
+  const m0 = s.closed ? n0 : n0 - 1;
+  const isCorner = new Uint8Array(n0);
+  for (const c of s.corners) isCorner[c] = 1;
+  const pts = [];
+  const cor = [];
+  const vis = [];
+  for (let i = 0; i < m0; i++) {
+    const j = (i + 1) % n0;
+    const dx = P[2 * j] - P[2 * i];
+    const dy = P[2 * j + 1] - P[2 * i + 1];
+    const cnt = Math.max(1, Math.ceil(Math.hypot(dx, dy) / KEEP_STEP));
+    const v = s.vis ? s.vis[i] : 1;
+    for (let k = 0; k < cnt; k++) {
+      pts.push(P[2 * i] + (dx * k) / cnt, P[2 * i + 1] + (dy * k) / cnt);
+      cor.push(k === 0 ? isCorner[i] : 0);
+      vis.push(v);
+    }
+  }
+  if (!s.closed) {
+    pts.push(P[2 * (n0 - 1)], P[2 * (n0 - 1) + 1]);
+    cor.push(1);
+  }
+  return { pts, cor, vis, n: pts.length / 2, closed: s.closed };
+}
+
+// Which points of the dense stroke D (of stroke s) are kept against the strokes `others` of the other icon.
+function keepMask(s, D, others) {
+  const n = D.n;
+  const kept = new Uint8Array(n);
+  const cand = others.filter((q) => !q.fill && q.sw !== 0 && sameStyle(s, q));
+  if (!cand.length) return kept;
+  const boxes = cand.map(strokeBox);
+  const m = D.closed ? n : n - 1;
+  let any = false;
+  for (let p = 0; p < n; p++) {
+    // The segment that starts at p (the one that ends at p for the last point of an open stroke).
+    let a = p;
+    let b = (p + 1) % n;
+    let sv = p < m ? D.vis[p] : 0;
+    if (p >= m) {
+      a = p - 1;
+      b = p;
+      sv = a >= 0 ? D.vis[a] : 0;
+    }
+    if (!sv) continue;
+    const x = D.pts[2 * p];
+    const y = D.pts[2 * p + 1];
+    let tx = D.pts[2 * b] - D.pts[2 * a];
+    let ty = D.pts[2 * b + 1] - D.pts[2 * a + 1];
+    const tl = Math.hypot(tx, ty);
+    if (tl < 1e-9) continue;
+    tx /= tl;
+    ty /= tl;
+    for (let c = 0; c < cand.length && !kept[p]; c++) {
+      const bx = boxes[c];
+      if (x < bx[0] - KEEP_DIST || x > bx[2] + KEEP_DIST || y < bx[1] - KEEP_DIST || y > bx[3] + KEEP_DIST) continue;
+      const q = cand[c];
+      const nr = nearestOnStrokeNear(q, x, y);
+      if (nr.d > KEEP_DIST) continue;
+      const Q = q.pts;
+      const i = nr.i;
+      const j = (i + 1) % (Q.length / 2);
+      const ux = Q[2 * j] - Q[2 * i];
+      const uy = Q[2 * j + 1] - Q[2 * i + 1];
+      const ul = Math.hypot(ux, uy);
+      if (ul < 1e-9) continue;
+      if (Math.abs((tx * ux + ty * uy) / ul) >= KEEP_COS) kept[p] = 1;
+    }
+    if (kept[p]) any = true;
+  }
+  return any ? kept : null;
+}
+
+// Fill gaps shorter than KEEP_GAP between kept points, then return the runs of at least KEEP_RUN: [{ a, b, len }] in unrolled point
+// indices (b may be >= n for a closed stroke: use modulo). A closed stroke that is kept all round is one run { a: 0, b: n, all: true }.
+function keepRuns(D, kept) {
+  const n = D.n;
+  const closed = D.closed;
+  const segLen = (p) => Math.hypot(D.pts[2 * ((p + 1) % n)] - D.pts[2 * p], D.pts[2 * ((p + 1) % n) + 1] - D.pts[2 * p + 1]);
+  const lenOf = (a, b) => {
+    let L = 0;
+    for (let p = a; p < b; p++) L += segLen(p % n);
+    return L;
+  };
+  let first = -1;
+  for (let p = 0; p < n; p++) {
+    if (kept[p]) {
+      first = p;
+      break;
+    }
+  }
+  if (first < 0) return [];
+  // Gap fill between consecutive kept points (unrolled from `first`; a closed stroke also fills the gap that wraps round).
+  const span = closed ? n : n - first;
+  let prev = first;
+  for (let u = first + 1; u <= first + span; u++) {
+    const isEnd = closed && u === first + n;
+    if (!isEnd && u >= first + span) break;
+    if (!isEnd && !kept[u % n]) continue;
+    if (u - prev > 1 && lenOf(prev, u) <= KEEP_GAP) for (let w = prev + 1; w < u; w++) kept[w % n] = 1;
+    prev = u;
+  }
+  let allKept = true;
+  for (let p = 0; p < n; p++) {
+    if (!kept[p]) {
+      allKept = false;
+      break;
+    }
+  }
+  if (closed && allKept) return [{ a: 0, b: n, all: true, len: lenOf(0, n) }];
+  let start = 0;
+  if (closed) {
+    for (let p = 0; p < n; p++) {
+      if (kept[p] && !kept[(p - 1 + n) % n]) {
+        start = p;
+        break;
+      }
+    }
+  }
+  const runs = [];
+  let u = 0;
+  while (u < n) {
+    if (!kept[(start + u) % n]) {
+      u++;
+      continue;
+    }
+    let e = u;
+    while (e + 1 < n && kept[(start + e + 1) % n]) e++;
+    const L = lenOf(start + u, start + e);
+    if (L >= KEEP_RUN) runs.push({ a: start + u, b: start + e, len: L });
+    u = e + 1;
+  }
+  return runs;
+}
+
+function ptsInside(P, Q, thr = KEEP_DIST + 0.03) {
+  // Fraction of the points of P (flat) that lie within thr of the polyline Q (flat).
+  const np = P.length / 2;
+  const nq = Q.length / 2;
+  let hit = 0;
+  for (let i = 0; i < np; i++) {
+    const x = P[2 * i];
+    const y = P[2 * i + 1];
+    let bd = Infinity;
+    for (let j = 0; j + 1 < nq; j++) {
+      const ax = Q[2 * j];
+      const ay = Q[2 * j + 1];
+      const dx = Q[2 * j + 2] - ax;
+      const dy = Q[2 * j + 3] - ay;
+      const l2 = dx * dx + dy * dy;
+      let t = l2 > 0 ? ((x - ax) * dx + (y - ay) * dy) / l2 : 0;
+      t = t < 0 ? 0 : t > 1 ? 1 : t;
+      const d = Math.hypot(x - ax - t * dx, y - ay - t * dy);
+      if (d < bd) bd = d;
+    }
+    if (bd <= thr) hit++;
+  }
+  return np ? hit / np : 0;
+}
+
+// The ends of two kept pieces (flat point lists) agree within KEEP_END, first to first and last to last, or crossed.
+function keepEndsAgree(P, Q) {
+  const e = (L, k) => (k === 0 ? [L[0], L[1]] : [L[L.length - 2], L[L.length - 1]]);
+  const d = (u, v) => Math.hypot(u[0] - v[0], u[1] - v[1]);
+  const [p0, p1, q0, q1] = [e(P, 0), e(P, 1), e(Q, 0), e(Q, 1)];
+  if (d(p0, q0) <= KEEP_END && d(p1, q1) <= KEEP_END) return true;
+  return d(p0, q1) <= KEEP_END && d(p1, q0) <= KEEP_END;
+}
+
+function keepSub(D, a, b) {
+  // Points a..b (unrolled, inclusive), their corner flags, and the visibility of the segments between them.
+  const n = D.n;
+  const pts = [];
+  const cor = [];
+  const vis = [];
+  for (let p = a; p <= b; p++) {
+    const q = p % n;
+    pts.push(D.pts[2 * q], D.pts[2 * q + 1]);
+    cor.push(D.cor[q]);
+    if (p < b) vis.push(D.vis[q]);
+  }
+  return { pts, cor, vis };
+}
+
+function keepPiece(src, sub, role, cornerAngle) {
+  const joints = [];
+  sub.cor.forEach((c, i) => c && joints.push(i));
+  const vis = sub.vis.every((v) => v) ? null : sub.vis;
+  const st = makeStroke(sub.pts, joints, false, cornerAngle, src.opacity, false, vis);
+  if (!st) return null;
+  st.fill = src.fill;
+  st.sw = src.sw;
+  st.rw = src.rw;
+  if (src.ws0 !== undefined) st.ws0 = src.ws0;
+  st.bridges = countBridges(st);
+  st._role = role;
+  return st;
+}
+
+/**
+ * R14 pre-pass. Returns { A, B, info } with the cut strokes (each array carries .tree), or null when nothing is kept.
+ * info.pairs lists the static slots: { a, b, len } (indices in the new arrays).
+ */
+function keepPrepass(A, B, o) {
+  const prep = (S) => S.map((s) => (s.fill || s.sw === 0 ? null : keepDensify(s)));
+  const DA = prep(A);
+  const DB = prep(B);
+  const pieces = []; // { side, si, run, D, len, whole, pts, pair }
+  const collect = (S, D, other, side) => {
+    S.forEach((s, si) => {
+      if (!D[si]) return;
+      const kept = keepMask(s, D[si], other);
+      if (!kept) return;
+      for (const run of keepRuns(D[si], kept)) {
+        const sub = keepSub(D[si], run.a, run.b);
+        const whole = run.all || (!s.closed && run.a === 0 && run.b === D[si].n - 1) || run.len >= 0.98 * s.length;
+        pieces.push({ side, si, run, len: run.len, whole, pts: sub.pts, pair: null });
+      }
+    });
+  };
+  collect(A, DA, B, 'A');
+  collect(B, DB, A, 'B');
+  // R14-8b: never cut a stroke that belongs to an R11 mirror group (in either icon). The members of a group share one motion
+  // (R11b-5), so a cut on one member and not on its partner would move the two apart. When either icon has a mirror group the
+  // pre-pass returns with no cut: the R11 rig finds a partner by its original stroke index, and a cut shifts the plan's indices.
+  const partners = (S) => {
+    const out = S.map(() => []);
+    for (let i = 0; i < S.length; i++) {
+      for (let j = i + 1; j < S.length; j++) {
+        const gv = mirrorGap(S[i], S[j], 'v');
+        const gh = mirrorGap(S[i], S[j], 'h');
+        if (Math.min(gv, gh) === Infinity) continue;
+        const ax = gv <= gh ? 'v' : 'h';
+        out[i].push({ j, ax });
+        out[j].push({ j: i, ax });
+      }
+    }
+    return out;
+  };
+  const mirrorOf = { A: partners(A), B: partners(B) };
+  if (mirrorOf.A.some((l) => l.length) || mirrorOf.B.some((l) => l.length)) return null;
+  const pa = pieces.filter((p) => p.side === 'A');
+  const pb = pieces.filter((p) => p.side === 'B');
+  if (!pa.length || !pb.length) return null;
+  const cands = [];
+  for (const x of pa) {
+    for (const y of pb) {
+      if (!sameStyle(A[x.si], B[y.si])) continue;
+      const c1 = ptsInside(x.pts, y.pts, KEEP_DIST);
+      if (c1 < KEEP_COVER) continue;
+      const c2 = ptsInside(y.pts, x.pts, KEEP_DIST);
+      if (c2 < KEEP_COVER) continue;
+      if (!keepEndsAgree(x.pts, y.pts)) continue;
+      cands.push({ x, y, sc: Math.min(c1, c2) });
+    }
+  }
+  cands.sort((p, q) => q.sc - p.sc);
+  for (const c of cands) {
+    if (c.x.pair || c.y.pair) continue;
+    c.x.pair = c.y;
+    c.y.pair = c.x;
+  }
+  // A kept piece that is a whole stroke on both sides is the old static case: leave it to the static rule.
+  for (const p of pa) if (p.pair && p.whole && p.pair.whole) { p.pair.pair = null; p.pair = null; }
+  // R14-5: a stroke is cut only when its paired kept length is at least KEEP_FRAC of its length.
+  for (let guard = 0; guard < 16; guard++) {
+    let change = false;
+    for (const side of ['A', 'B']) {
+      const S = side === 'A' ? A : B;
+      S.forEach((s, si) => {
+        const mine = pieces.filter((p) => p.side === side && p.si === si && p.pair);
+        if (!mine.length) return;
+        let L = 0;
+        for (const p of mine) L += p.len;
+        if (L < KEEP_FRAC * s.length) {
+          for (const p of mine) { p.pair.pair = null; p.pair = null; }
+          change = true;
+        }
+      });
+    }
+    if (!change) break;
+  }
+  if (!pieces.some((p) => p.pair)) return null;
+  // Cut.
+  const build = (S, D, side) => {
+    const out = [];
+    const made = new Map(); // piece -> stroke
+    S.forEach((s, si) => {
+      const mine = pieces.filter((p) => p.side === side && p.si === si && p.pair).sort((x, y) => x.run.a - y.run.a);
+      if (!mine.length) {
+        out.push(s);
+        return;
+      }
+      const d = D[si];
+      const n = d.n;
+      const seq = [];
+      const keptStroke = (p) => {
+        const st = keepPiece(s, keepSub(d, p.run.a, p.run.b), 'kept', o.cornerAngle);
+        if (st) made.set(p, st);
+        return st;
+      };
+      const changed = (a, b) => {
+        if (b <= a) return null;
+        return keepPiece(s, keepSub(d, a, b), 'changed', o.cornerAngle);
+      };
+      if (s.closed) {
+        if (mine[0].run.all) {
+          // whole closed stroke kept: one kept piece (closed)
+          const st = { ...s, id: strokeId++, cacheable: false, _role: 'kept', _box: undefined, _grid: undefined, _vsmp: undefined, _ext: undefined, _info: undefined, _ts: undefined };
+          made.set(mine[0], st);
+          out.push(st);
+          return;
+        }
+        const a0 = mine[0].run.a;
+        for (let k = 0; k < mine.length; k++) {
+          seq.push(keptStroke(mine[k]));
+          const e = mine[k].run.b;
+          const nx = k + 1 < mine.length ? mine[k + 1].run.a : a0 + n;
+          seq.push(changed(e, nx));
+        }
+      } else {
+        const r0 = mine[0].run;
+        if (r0.a > 0) seq.push(changed(0, r0.a));
+        for (let k = 0; k < mine.length; k++) {
+          seq.push(keptStroke(mine[k]));
+          const e = mine[k].run.b;
+          const nx = k + 1 < mine.length ? mine[k + 1].run.a : n - 1;
+          seq.push(changed(e, nx));
+        }
+      }
+      for (const st of seq) if (st) out.push(st);
+    });
+    return { out, made };
+  };
+  const ra = build(A, DA, 'A');
+  const rb = build(B, DB, 'B');
+  const pairs = [];
+  for (const p of pa) {
+    if (!p.pair) continue;
+    const sa = ra.made.get(p);
+    const sb = rb.made.get(p.pair);
+    if (!sa || !sb) continue;
+    sa._keepWith = sb;
+    sb._keepWith = sa;
+    pairs.push({ a: sa, b: sb, len: Math.max(p.len, p.pair.len) });
+  }
+  if (!pairs.length) return null;
+  const NA = ra.out;
+  const NB = rb.out;
+  NA.tree = buildTree(NA);
+  NB.tree = buildTree(NB);
+  return { A: NA, B: NB, pairs: pairs.map((p) => ({ a: NA.indexOf(p.a), b: NB.indexOf(p.b), len: p.len })) };
+}
+
+/**
+ * R14: the kept pieces of two stroke icons, for reports and tests: { pairs: [{ a, b, len, ax, bx }], A: [{ role, len }], B: [...] }.
+ * Returns null when nothing is cut. `ax` and `bx` are the point lists (flat) of the kept piece on each side.
+ */
+function keptSegments(from, to, opts = {}) {
+  const o = { ...DEFAULTS, ...opts };
+  const A = toStrokes(from, o);
+  const B = toStrokes(to, o);
+  o._swFrom = srcWidth(from);
+  o._swTo = srcWidth(to);
+  o._capsFrom = srcCaps(from);
+  o._capsTo = srcCaps(to);
+  o.styleToggle = isStyleToggle(from, to);
+  if (o.styleToggle) o.objects = false;
+  const kp = planStrokesKeep(A, B, o).kp;
+  if (!kp) return null;
+  const info = (S) => S.map((s) => ({ role: s._role || 'whole', len: +s.length.toFixed(3), closed: s.closed }));
+  return { pairs: kp.pairs.map((p) => ({ a: p.a, b: p.b, len: +p.len.toFixed(3) })), A: info(kp.A), B: info(kp.B) };
+}
+
+// R14 fix pass 2: the ink travel of a plan (px at 96 px): the sum over frame steps of the displacement of index-matched points
+// of each slot entry. Used at plan time to decide whether a cut pays (R14-5).
+const KEEP_NUM = /-?\d+(?:\.\d+)?(?:e[-+]?\d+)?/g;
+function inkTravel(plan, nf) {
+  let prev = null;
+  let sum = 0;
+  for (let f = 0; f <= nf; f++) {
+    const cur = new Map();
+    for (const e of plan.frame(f / nf)) {
+      const subs = e.d.split('M');
+      const list = [];
+      for (const sp of subs) if (sp) list.push((sp.match(KEEP_NUM) || []).map(Number));
+      cur.set(e.key, list);
+    }
+    if (prev) {
+      for (const [k, list] of cur) {
+        const l0 = prev.get(k);
+        if (!l0) continue;
+        for (let i = 0; i < Math.min(list.length, l0.length); i++) {
+          const n = Math.min(list[i].length, l0[i].length) >> 1;
+          for (let q = 0; q < n; q++) sum += Math.hypot(list[i][2 * q] - l0[i][2 * q], list[i][2 * q + 1] - l0[i][2 * q + 1]);
+        }
+      }
+    }
+    prev = cur;
+  }
+  return sum * 4;
+}
+
+const KEEP_TRAVEL_FRAMES = 20;
+const KEEP_END = 0.24; // R14 fix pass 2: the two kept pieces of a pair have ends within KEEP_END units 
+
+// R14-10: a cheap necessary test before the keep pre-pass (which densifies every stroke and scans it against the other icon).
+// A kept point of a stroke lies within KEEP_DIST of a stroke of the other icon, so the two stroke boxes are within KEEP_DIST.
+// Most pairs have no such pair of strokes, so the pre-pass does not run for them.
+function keepCandidate(A, B) {
+  const xs = [];
+  const ys = [];
+  for (const s of A) if (!s.fill && s.sw !== 0) xs.push({ s, b: strokeBox(s) });
+  for (const s of B) if (!s.fill && s.sw !== 0) ys.push({ s, b: strokeBox(s) });
+  for (const x of xs) {
+    for (const y of ys) {
+      if (!sameStyle(x.s, y.s)) continue;
+      const dx = Math.max(x.b[0] - y.b[2], y.b[0] - x.b[2], 0);
+      const dy = Math.max(x.b[1] - y.b[3], y.b[1] - x.b[3], 0);
+      if (Math.hypot(dx, dy) <= KEEP_DIST) return true;
+    }
+  }
+  return false;
+}
+
+// R14 + R14-5: the plan, and the accepted pre-pass (null when no cut is kept). R14-9 (gate B, owner 2026-10-20; R14-9b, gate 1.0, is withdrawn): the cut plan is kept
+// when its ink travel is at most o.keepGate times the travel of the plan without the cut (default 0.8): the cut must lower the travel by at least 20%.
+function planStrokesKeep(A, B, o) {
+  if (o.keepStatic !== false && o.matching !== 'legacy' && !o.objects && !o.styleToggle && A.length && B.length && A !== B) {
+    if (!keepCandidate(A, B)) return { plan: null, kp: null }; // R14-10: plan both ways only when there is a candidate
+    const kp = keepPrepass(A, B, o);
+    if (kp) {
+      const cut = buildPlan(kp.A, kp.B, { ...o, _keepPairs: kp.pairs }, null);
+      const gate = o.keepGate === undefined ? 0.8 : o.keepGate; // R14-9: keep the cuts only when they lower the ink travel by at least 20% (ratio at most 0.8)
+      if (gate === Infinity) return { plan: cut, kp };
+      const plain = buildPlan(A, B, { ...o }, null);
+      const ratio = inkTravel(cut, KEEP_TRAVEL_FRAMES) / Math.max(1e-9, inkTravel(plain, KEEP_TRAVEL_FRAMES));
+      if (ratio <= gate) return { plan: cut, kp };
+      return { plan: plain, kp: null }; // R14-10: reuse the uncut plan (planStrokes does not build it again)
+    }
+  }
+  return { plan: null, kp: null };
+}
+
 // The stroke planner: objects (R7-A) when they apply, else the round 6b stroke rules.
 function planStrokes(A, B, o) {
+  const k = planStrokesKeep(A, B, o);
+  if (k.plan) return k.plan;
   if (o.matching !== 'legacy') {
     if (o.objects === 'containers') {
       const p = tryContainerPlan(A, B, o);
@@ -7454,6 +8054,7 @@ function makeTiedSlot(r, A, B, o, K, rules, turning, turnDeg, turnG, easing) {
     }
     stats(res.F, res.T, M);
     isStatic = dd / M < 1e-6 || (st.ST > 1e-9 && dd / st.ST < 1e-4);
+    if (r.keep && !turning) isStatic = true; // R14: a kept piece does not move
     if (turning) isStatic = false;
     if (!turning && !isStatic && !r.ident && o.rigid && r.kind === 'match') {
       // Coarse search of the rotation fit and the reflection fit over all alignments.
@@ -7510,8 +8111,8 @@ function makeTiedSlot(r, A, B, o, K, rules, turning, turnDeg, turnG, easing) {
     M,
     F,
     T,
-    visF: visF || new Uint8Array(nseg).fill(1),
-    visT: visT || new Uint8Array(nseg).fill(1),
+    visF: visF || onesMask(nseg),
+    visT: visT || onesMask(nseg),
     weight,
     fromOp: a ? a.opacity : 0,
     toOp: b ? b.opacity : 1,
@@ -7521,6 +8122,7 @@ function makeTiedSlot(r, A, B, o, K, rules, turning, turnDeg, turnG, easing) {
     ws0: a && a.ws0 !== undefined ? a.ws0 : 1,
     buf: new Float64Array(2 * M),
     static: isStatic,
+    keep: !!(r.keep && !turning),
     bigTurn,
     chain: { from: a ? a.bridges : 0, to: b ? b.bridges : 0 },
     anchor: -1,
@@ -7811,7 +8413,7 @@ function finishPlan(slots, A, B, coarseA, coarseB, o, rules, turnDeg, dA, dB, ex
       curU[i] = u;
       curUm[i] = um;
       curTau[i] = tau;
-      curOp[i] = evalSlot(sl, u, tau, um, fxA);
+      curOp[i] = evalSlot(sl, u, tau, um, fxA, t);
       if (fxA && sl.kind === 'enter' && tau >= fxArg.tc && tau < 1) popEnter(sl, 1 + (sl._g === undefined ? 1 : sl._g) * (sl._gs === undefined ? 1 : sl._gs) * efx.pop * (u - 1));
       if (fxA && (sl.kind === 'exit' || sl.kind === 'enter')) clampSlot(sl);
       if (sl._bal) applyBalance(sl, t, um);
