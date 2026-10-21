@@ -1,4 +1,4 @@
-/* shapcn: morph any icon into any other. MIT license. Lucide icons: ISC license. https://shapcn.dev */
+/* shapcn: morph any icon into any other. MIT license. Lucide icons: ISC license. https://shapcn.com */
 (function () {
 'use strict';
 if (window.customElements && window.customElements.get('morph-icon')) return;

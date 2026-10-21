@@ -352,8 +352,8 @@ footer{padding:32px 0 64px;border-top:1px solid var(--border);color:var(--sec);f
     <div class="head"><div><h2>Install</h2><p>The script tag works today. The npm package and the shadcn registry come next.</p></div></div>
     <div class="inst">
       <div class="code"><div><small>shadcn</small><code>npx shadcn@latest add @shapcn/morph-icon</code></div><button class="btn alt" type="button" data-copy="npx shadcn@latest add @shapcn/morph-icon">Copy</button></div>
-      <div class="code"><div><small>Any site</small><code>&lt;script type="module" src="https://shapcn.dev/morph-icon.js"&gt;&lt;/script&gt;
-&lt;morph-icon name="menu"&gt;&lt;/morph-icon&gt;</code></div><button class="btn alt" type="button" data-copy='<script type="module" src="https://shapcn.dev/morph-icon.js"></script>
+      <div class="code"><div><small>Any site</small><code>&lt;script type="module" src="https://shapcn.com/morph-icon.js"&gt;&lt;/script&gt;
+&lt;morph-icon name="menu"&gt;&lt;/morph-icon&gt;</code></div><button class="btn alt" type="button" data-copy='<script type="module" src="https://shapcn.com/morph-icon.js"></script>
 <morph-icon name="menu"></morph-icon>'>Copy</button></div>
       <div class="code"><div><small>Bundlers</small><code>npm i shapcn</code></div><button class="btn alt" type="button" data-copy="npm i shapcn">Copy</button></div>
     </div>
@@ -12612,7 +12612,7 @@ var snipKind='html';
 function snippet(){
   var a=fullName(cur.fam,cur.from),b=fullName(cur.fam,cur.to);
   if(snipKind==='react')return 'import { MorphIcon } from "@/components/ui/morph-icon"\n\n<MorphIcon\n  name={on ? "'+b+'" : "'+a+'"}\n  duration={'+dur+'}\n  easing="'+feel+'"\n/>';
-  return '<script type="module" src="https://shapcn.dev/morph-icon.js"><\/script>\n\n<morph-icon name="'+a+'" duration="'+dur+'" easing="'+feel+'"></morph-icon>\n<!-- set name="'+b+'" and it morphs -->';
+  return '<script type="module" src="https://shapcn.com/morph-icon.js"><\/script>\n\n<morph-icon name="'+a+'" duration="'+dur+'" easing="'+feel+'"></morph-icon>\n<!-- set name="'+b+'" and it morphs -->';
 }
 function renderSnip(){$('#psnip').textContent=snippet();document.getElementById('pdone').textContent=''}
 R.querySelectorAll('.tab').forEach(function(t){
