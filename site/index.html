@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <title>shapcn</title>
+<meta name="description" content="Bring your UI to life with one drop-in library. Morph any icon into any other.">
+<meta property="og:description" content="Bring your UI to life with one drop-in library. Morph any icon into any other.">
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
@@ -38,6 +40,7 @@ nav a:hover{color:var(--ink)}
 /* the accent is a marker: a highlighter stroke behind dark text */
 .hero h1 .hl{color:var(--ink);background:linear-gradient(transparent 58%,var(--accent) 58%,var(--accent) 92%,transparent 92%)}
 .hero .facts b{color:var(--ink);background:var(--accent);padding:0 3px;border-radius:3px}
+.hero .facts b a{color:inherit;text-decoration:none}
 .btn.accent{background:var(--accent);color:var(--on-accent)}
 input[type=range],input[type=checkbox]{accent-color:var(--ink)}
 .cmp{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;min-width:0}
@@ -271,8 +274,8 @@ footer{padding:32px 0 64px;border-top:1px solid var(--border);color:var(--sec);f
   <header class="hero">
     <div>
       <h1>Morph icons <span class="hl">like a pro.</span></h1>
-      <p class="sub">Change an icon, and it moves like an animator made it. No keyframes, no timeline, no sloptweening. One line of code. Shape-aware tweening plans every frame for you, live, in five icon libraries.</p>
-      <p class="facts"><b>100% dynamic.</b> No animation is pre-built: any icon morphs into any other, planned in about 0.3 ms.</p>
+      <p class="sub">Bring your UI to life with one drop-in library.</p>
+      <p class="facts">Use Lucide, Tabler, Phosphor, Remix, Hugeicons or your own icons. Install it today, or take the <b><a href="https://github.com/seahorsecastle/shapcn">open source code</a></b> as inspiration.</p>
       <div class="row">
         <a class="btn accent" href="#play" style="text-decoration:none">Try it out</a>
         <a class="btn alt" href="#install" style="text-decoration:none">Install</a>
