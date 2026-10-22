@@ -1,10 +1,12 @@
 # shapcn
 
-Morph any icon into any other, the way an animator would. No keyframes, no timeline, no sloptweening.
+**Morph icons like a pro.**
 
-shapcn plans every frame live. It weighs each shape of an icon, rigs the small parts to the shape they touch, and decides what morphs, what moves, and when: old parts go into the body, the body changes, new parts grow out.
+Change the icon name. shapcn animates the rest.
 
-Site and playground: https://shapcn.com
+shapcn plans every morph live, shape by shape. No keyframes, no timeline, no sloptweening. It weighs each shape of an icon, rigs the small parts to the shape they touch, and decides what morphs, what moves, and when.
+
+Site and playground: https://shapcn.com. Docs: https://shapcn.com/docs.
 
 ## Use it today
 

@@ -1,6 +1,6 @@
 # shapcn docs
 
-> Morph any icon into any other, the way an animator would. Change the name of a <morph-icon> element and the engine plans every frame.
+> Morph icons like a pro. Change the icon name. shapcn animates the rest. The engine plans every morph live, shape by shape.
 
 Source: https://shapcn.com/docs
 
@@ -40,6 +40,15 @@ The icon morphs from `menu` to `x`. Set `name` to an empty string and the icon h
 - [JavaScript](https://shapcn.com/docs/javascript.md): `planMorph`, `planAlive`, `alive`, `defineMorphIcon`, and `registerIcons`.
 - [Frameworks](https://shapcn.com/docs/frameworks.md): plain HTML, React, Vue, and Svelte.
 - [Accessibility](https://shapcn.com/docs/accessibility.md): reduced motion, focus, and aria.
+
+## Back to the site
+
+- [Examples](/#examples)
+- [Playground](/#play)
+- [Compare](/#compare): plain point blending next to shapcn, frame by frame.
+- [How it works](/#how)
+- [Install](/#install)
+- [GitHub](https://github.com/seahorsecastle/shapcn)
 
 ## Markdown and LLM files
 

@@ -35,6 +35,15 @@ The icon morphs from `menu` to `x`. Set `name` to an empty string and the icon h
 - [Frameworks](https://shapcn.com/docs/frameworks.md): plain HTML, React, Vue, and Svelte.
 - [Accessibility](https://shapcn.com/docs/accessibility.md): reduced motion, focus, and aria.
 
+## Back to the site
+
+- [Examples](/#examples)
+- [Playground](/#play)
+- [Compare](/#compare): plain point blending next to shapcn, frame by frame.
+- [How it works](/#how)
+- [Install](/#install)
+- [GitHub](https://github.com/seahorsecastle/shapcn)
+
 ## Markdown and LLM files
 
 Every page has a Markdown twin. Add `.md` to the path, for example `/docs/element.md`. The file [/llms.txt](https://shapcn.com/llms.txt) lists the pages. The file [/llms-full.txt](https://shapcn.com/llms-full.txt) holds all pages in one file.

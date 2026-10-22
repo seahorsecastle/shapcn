@@ -7,7 +7,9 @@ a{color:var(--ink)}
 :focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .skip{position:absolute;left:-999px;top:8px;background:var(--ink);color:#fff;padding:8px 12px;border-radius:8px;z-index:10}
 .skip:focus{left:var(--gut)}
-.top{max-width:1080px;margin:0 auto;padding:16px var(--gut)}
+.top{max-width:1080px;margin:0 auto;padding:16px var(--gut);display:flex;justify-content:space-between;align-items:center}
+.top .gh{font-size:14px;color:var(--sec,#555);text-decoration:none}
+.top .gh:hover{color:var(--ink)}
 .brand{font-size:18px;font-weight:700;letter-spacing:-.02em;color:var(--ink);text-decoration:none}
 .shell{max-width:1080px;margin:0 auto;padding:0 var(--gut) 72px;display:grid;grid-template-columns:200px minmax(0,1fr);gap:48px;align-items:start}
 aside{position:sticky;top:16px}

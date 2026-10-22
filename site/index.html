@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <title>shapcn</title>
-<meta name="description" content="Bring your UI to life with one drop-in library. Morph any icon into any other.">
-<meta property="og:description" content="Bring your UI to life with one drop-in library. Morph any icon into any other.">
+<meta name="description" content="Change the icon name. shapcn animates the rest. Any icon into any other, planned live.">
+<meta property="og:description" content="Change the icon name. shapcn animates the rest. Any icon into any other, planned live.">
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
@@ -25,25 +25,33 @@ p{margin:0}
 a{color:var(--ink)}
 :focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 button,select,input{font:inherit;color:var(--ink)}
-.btn{background:var(--ink);color:#fff;border:0;border-radius:10px;padding:10px 16px;font-weight:600;cursor:pointer;font-size:15px}
+.btn{background:var(--ink);color:#fff;border:0;border-radius:10px;padding:10px 16px;min-height:44px;font-weight:600;cursor:pointer;font-size:15px}
 .btn.alt{background:var(--pill);color:var(--ink);border:1px solid var(--border)}
 .btn:active{transform:scale(.98)}
-nav{display:flex;justify-content:space-between;align-items:center;padding:16px 0;gap:12px;flex-wrap:wrap}
-nav b{font-size:18px;letter-spacing:-.02em}
-nav div{display:flex;gap:16px;font-size:14px}
-nav a{color:var(--sec);text-decoration:none}
-nav a:hover{color:var(--ink)}
-.hero{padding:40px 0 48px;display:grid;grid-template-columns:1fr 1.1fr;gap:32px;align-items:center}
+nav{display:flex;justify-content:space-between;align-items:center;padding:8px 0;gap:12px;flex-wrap:wrap}
+nav b{font-size:18px;letter-spacing:-.02em;display:inline-flex;align-items:center;gap:6px;min-height:44px;cursor:pointer}
+nav div{display:flex;gap:12px;font-size:14px;flex-wrap:wrap}
+nav a{color:var(--sec);text-decoration:none;display:inline-flex;align-items:center;min-height:44px;padding:0 4px}
+nav a:hover{color:var(--ink);background:linear-gradient(transparent 62%,var(--accent) 62%,var(--accent) 90%,transparent 90%)}
+.hero{position:relative;padding:56px 0 64px;display:block}
+.hero-copy{position:relative;z-index:1;max-width:36em}
+.hero-copy::before{content:"";position:absolute;inset:-28px -12px;z-index:-1;background:radial-gradient(closest-side,#fff 64%,rgba(255,255,255,.86) 84%,transparent 100%);pointer-events:none}
+.specimen{position:absolute;top:0;bottom:0;left:50%;width:100vw;transform:translateX(-50%);display:grid;place-items:center;overflow:hidden;pointer-events:none;user-select:none}
+.specimen morph-icon{color:var(--ink);opacity:.13;transition:opacity .35s ease,transform .35s ease}
+.specimen morph-icon.rip{opacity:.52;transform:scale(1.08)}
+@media (prefers-reduced-motion:reduce){.specimen morph-icon{transition:none}.specimen morph-icon.rip{transform:none}}
 .hero .sub{font-family:Georgia,serif;font-size:20px;color:var(--sec);margin:16px 0 24px;max-width:30em}
 .hero .row{display:flex;gap:8px;flex-wrap:wrap}
-.hero .facts{font-size:15px;color:var(--sec);margin:-8px 0 24px;max-width:32em}
+.hero .facts{font-size:15px;color:var(--sec);margin:-8px 0 24px;max-width:80ch;text-wrap:balance}
+.hero .facts .dbr{display:none}
+@media (min-width:640px){.hero .facts .dbr{display:inline}}
 /* the accent is a marker: a highlighter stroke behind dark text */
 .hero h1 .hl{color:var(--ink);background:linear-gradient(transparent 58%,var(--accent) 58%,var(--accent) 92%,transparent 92%)}
 .hero .facts b{color:var(--ink);background:var(--accent);padding:0 3px;border-radius:3px}
 .hero .facts b a{color:inherit;text-decoration:none}
 .btn.accent{background:var(--accent);color:var(--on-accent)}
 input[type=range],input[type=checkbox]{accent-color:var(--ink)}
-.cmp{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;min-width:0}
+.cmp{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;min-width:0;max-width:680px}
 .cmp-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .cmp figure{margin:0;min-width:0}
 /* the two stages line up when one caption wraps */
@@ -54,7 +62,7 @@ input[type=range],input[type=checkbox]{accent-color:var(--ink)}
 .cmp .how{font-size:12px;line-height:1.4;color:var(--sec);margin-top:8px}
 .cmp .stage{width:100%;padding:10px;background:#fff;height:auto}
 .scrub{display:flex;gap:12px;align-items:center;margin-top:20px}
-.scrub input{flex:1;min-width:0}
+.scrub input{flex:1;min-width:0;min-height:44px;cursor:pointer}
 .scrub .btn{padding:6px 12px;font-size:14px}
 .wb{display:flex;flex-direction:column;gap:6px;margin-top:4px;max-width:28em}
 .wb .r{display:grid;grid-template-columns:auto 1fr 3.2em;gap:8px;align-items:center;font-size:12px;font-family:var(--mono);color:var(--sec)}
@@ -199,16 +207,13 @@ section.how .story{border-top:0;padding-top:0}
 #play .tile:focus-visible{outline-offset:-2px}
 #play .tile svg{width:24px;height:24px}
 #play .pk-n{margin:0;font-family:var(--mono);font-size:12px;color:var(--sec)}
-/* step 2: three feel tiles, equal weight */
-#play .feels{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-#play .feel{display:flex;flex-direction:column;align-items:center;gap:8px;min-width:0;padding:16px 12px 14px;border:1px solid var(--border);border-radius:12px;background:#fff;color:var(--ink);cursor:pointer;font:inherit;text-align:center}
+/* step 2: one compact segmented row of three feels */
+#play .feels{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+#play .feel{display:flex;align-items:center;justify-content:center;gap:10px;min-width:0;min-height:60px;padding:8px 10px;border:1px solid var(--border);border-radius:12px;background:#fff;color:var(--ink);cursor:pointer;font:inherit;text-align:center}
 #play .feel:hover{background:var(--surface)}
 #play .feel[aria-checked="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
-#play .fstage{width:min(75%,111px);aspect-ratio:1;color:var(--ink)}
 #play .fname{font-size:16px;font-weight:700;color:var(--ink);line-height:1.2}
-#play .fends{display:flex;align-items:center;gap:6px;color:var(--sec)}
-#play .fends svg{width:14px;height:14px}
-#play .fcurve{width:42px;height:21px;color:var(--ink)}
+#play .fcurve{width:42px;height:21px;color:var(--ink);flex:none}
 #play .use{display:flex;align-items:center;gap:12px}
 #play .dur{display:grid;grid-template-columns:auto minmax(0,1fr) 5.5em;gap:12px;align-items:center;font-size:14px;color:var(--sec)}
 #play .dur .mono{font-family:var(--mono);font-size:13px;color:var(--ink);text-align:right}
@@ -226,8 +231,8 @@ section.how .story{border-top:0;padding-top:0}
 @media (max-width:760px){
   #play .psteps{gap:40px}
   #play .pstep{grid-template-columns:24px minmax(0,1fr);gap:0 8px}
-  #play .feels{gap:8px}
-  #play .feel{padding:12px 6px 10px}
+  #play .feel{padding:6px;gap:6px}
+  #play .fcurve{width:30px;height:15px}
   #play .picks{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)}
   #play .pickbtn{padding:10px}
   #play .btn.primary{width:100%}
@@ -245,7 +250,7 @@ section.how .story{border-top:0;padding-top:0}
 footer a{color:var(--sec)}
 footer{padding:32px 0 64px;border-top:1px solid var(--border);color:var(--sec);font-size:14px;display:flex;flex-direction:column;gap:6px}
 @media (max-width:760px){
-  .hero{grid-template-columns:1fr;padding-top:16px}
+  .hero{padding:28px 0 40px}
   .cmp{padding:12px}
   .story{display:block}
   .stage-col{height:min(40vh,340px);flex-direction:row;justify-content:center;border-bottom:1px solid var(--border);padding:8px 0}
@@ -261,6 +266,27 @@ footer{padding:32px 0 64px;border-top:1px solid var(--border);color:var(--sec);f
   .code{flex-direction:column;align-items:stretch}
   .code .btn{align-self:flex-start}
 }
+/* header: centered, field full-bleed */
+.hero{text-align:center}
+.hero-copy{margin:0 auto;max-width:44em}
+.hero .sub{margin:16px auto 24px}
+.hero .facts{margin:-8px auto 24px}
+.hero .row{justify-content:center}
+#examples{border-top:0}
+/* frame comparison */
+.fc-pairs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px}
+.fc-pairs .btn{padding:6px 12px;min-height:44px;font-size:14px}
+.fc-pairs .btn[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.fc-scroll{overflow-x:auto}
+.fc-grid{min-width:340px;max-width:560px}
+.fc-lbl{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px;margin:0 0 6px}
+.fc-lbl b{font-size:14px;color:var(--ink)}
+.fc-lbl span{font-size:12px;color:var(--sec)}
+.fc-row{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));color:var(--ink);margin-bottom:20px}
+.fc-row>div,.fc-row .ik-frame{padding:2px;border:0;background:none;pointer-events:none;line-height:0;max-width:72px;width:100%;margin:0 auto}
+.fc-row svg{display:block;width:100%;height:auto}
+.fc-row .ik-strip{display:contents}
+.fc-t{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));font-family:var(--mono);font-size:11px;color:var(--muted);text-align:center;border-top:1px solid var(--border);padding-top:4px}
 </style>
 </head>
 <body>
@@ -269,24 +295,22 @@ footer{padding:32px 0 64px;border-top:1px solid var(--border);color:var(--sec);f
 <div class="wrap">
   <nav>
     <b>shapcn</b>
-    <div><a href="#examples">Examples</a><a href="#play">Playground</a><a href="#install">Install</a><a href="/docs">Docs</a></div>
+    <div><a href="#examples">Examples</a><a href="#play">Playground</a><a href="#compare">Compare</a><a href="#how">How it works</a><a href="#install">Install</a><a href="/docs">Docs</a><a href="https://github.com/seahorsecastle/shapcn" target="_blank" rel="noopener">GitHub</a></div>
   </nav>
+  <!-- Direction P1: Specimen field
+       1. Added an edge-to-edge specimen field of low-opacity live Lucide icons behind the hero copy with a soft white fade.
+       2. Pointer motion and touch taps send a soft ripple across nearby icons, morphing each to a partner icon and back.
+       3. Moved the Old vs New comparison into its own dedicated section (#compare, h2 "No more sloptweening") below the header and added it to nav. -->
   <header class="hero">
-    <div>
+    <div class="specimen" id="specimen" aria-hidden="true"></div>
+    <div class="hero-copy">
       <h1>Morph icons <span class="hl">like a pro.</span></h1>
-      <p class="sub">Bring your UI to life with one drop-in library.</p>
-      <p class="facts">Use Lucide, Tabler, Phosphor, Remix, Hugeicons or your own icons. Install it today, or take the <b><a href="https://github.com/seahorsecastle/shapcn">open source code</a></b> as inspiration.</p>
+      <p class="sub">Change the icon name. shapcn animates the rest.</p>
+      <p class="facts">Every morph is planned on the fly, shape by shape, for any pair of icons.<br class="dbr"> One script tag. Lucide, Tabler, Phosphor, Remix, Hugeicons or your own icons.</p>
       <div class="row">
         <a class="btn accent" href="#play" style="text-decoration:none">Try it out</a>
         <a class="btn alt" href="#install" style="text-decoration:none">Install</a>
       </div>
-    </div>
-    <div class="cmp">
-      <div class="cmp-row">
-        <figure><figcaption><span class="tag">Old</span>Sloptweening</figcaption><div class="stage" id="hplain" role="img" aria-label="Old: sloptweening of two icons"></div><p class="how">Every point slides to a point, all at once.</p></figure>
-        <figure><figcaption><span class="tag new">New</span>Shape-aware morph</figcaption><div class="stage" id="hink" role="img" aria-label="New: shape-aware tweening of the same two icons"></div><p class="how">Rigged first. Parts move in order.</p></figure>
-      </div>
-      <div class="scrub"><input type="range" id="hrange" min="0" max="1" step="0.01" value="0" aria-label="Moment of the morph"></div>
     </div>
   </header>
   <section class="btns" id="examples" aria-labelledby="btns-h">
@@ -362,6 +386,24 @@ footer{padding:32px 0 64px;border-top:1px solid var(--border);color:var(--sec);f
   </div>
 </section>
 
+<section class="blk" id="compare" aria-labelledby="cmp-h">
+  <div class="wrap">
+    <div class="head"><div><h2 id="cmp-h">No more sloptweening</h2><p>Seven moments of the same morph. Top: every point slides to a point. Bottom: shapcn.</p></div></div>
+    <div class="fc" id="fc">
+      <div class="fc-pairs" id="fcpairs" role="group" aria-label="Icon pair"></div>
+      <div class="fc-scroll">
+        <div class="fc-grid">
+          <div class="fc-lbl"><b>Sloptweening</b><span>Every point slides to a point, all at once.</span></div>
+          <div class="fc-row" id="fcslop" role="img" aria-label="Seven frames of the plain point blend"></div>
+          <div class="fc-lbl"><b>shapcn</b><span>Rigged first. Parts move in order.</span></div>
+          <div class="fc-row" id="fcink" role="img" aria-label="Seven frames of the shape-aware morph"></div>
+          <div class="fc-t" id="fct"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section class="blk how" id="how" aria-labelledby="how-h">
   <div class="wrap">
     <div class="head"><h2 id="how-h">How it works</h2></div>
@@ -402,7 +444,7 @@ footer{padding:32px 0 64px;border-top:1px solid var(--border);color:var(--sec);f
 <div class="wrap">
   <footer>
     <div>Made by Ron Kurti. You should follow me on <a href="https://x.com/RonKurti">Twitter</a>. I also made <a href="https://repo-explainer.com/">Repo Explainer</a>.</div>
-    <div>MIT license. Icons: Lucide (ISC), Tabler (MIT), Hugeicons (MIT), Phosphor (MIT), Remix Icon (Remix Icon License 1.0).</div>
+    <div><a href="https://github.com/seahorsecastle/shapcn" target="_blank" rel="noopener">GitHub</a>. MIT license. Icons: Lucide (ISC), Tabler (MIT), Hugeicons (MIT), Phosphor (MIT), Remix Icon (Remix Icon License 1.0).</div>
   </footer>
 </div>
 
@@ -13613,6 +13655,75 @@ function has(fam,n){try{return K.names(fam).indexOf(n)>=0}catch(e){return false}
 function pick(fam,list,seed){for(var i=0;i<list.length;i++)if(has(fam,list[i][0])&&has(fam,list[i][1]))return list[i];return K.randomPair(fam,seed)}
 
 /* hero */
+/* nav brand mark: a live morph-icon beside the wordmark */
+(function(){
+  var nb=$('nav b');if(!nb)return;
+  var pair=pick('lucide',[['shapes','sparkles'],['bug','bird']],1);
+  var m=document.createElement('morph-icon');m.setAttribute('name',pair[0]);m.setAttribute('size','18');m.setAttribute('duration','420');m.setAttribute('easing','spring');m.setAttribute('aria-hidden','true');
+  nb.insertBefore(m,nb.firstChild);
+  var flipped=false;
+  nb.addEventListener('pointerenter',function(){if(!RM)m.setAttribute('name',pair[1])});
+  nb.addEventListener('pointerleave',function(){if(!RM)m.setAttribute('name',flipped?pair[1]:pair[0])});
+  nb.addEventListener('click',function(){flipped=!flipped;m.setAttribute('name',flipped?pair[1]:pair[0])});
+})();
+/* specimen field: low-opacity live icons edge to edge behind the hero copy; pointer and tap ripple nearby icons */
+(function(){
+  var spec=$('#specimen'),hero=$('.hero');if(!spec||!hero)return;
+  var raw=[
+    ['sun','moon'],['lock','unlock'],['bell','bell-ring'],['heart','sparkles'],
+    ['eye','eye-off'],['play','pause'],['volume-2','volume-x'],['folder','folder-open'],
+    ['mail','mail-open'],['bookmark','check'],['star','sparkles'],['compass','navigation'],
+    ['cloud','cloud-rain'],['mic','mic-off'],['wifi','wifi-off'],['zap','flame'],
+    ['house','building'],['feather','pen-tool'],['bug','bird'],['smile','laugh'],
+    ['shield','shield-check'],['copy','check'],['search','zoom-in'],['send','check']
+  ];
+  var pairs=[];
+  for(var i=0;i<raw.length;i++)if(has('lucide',raw[i][0])&&has('lucide',raw[i][1]))pairs.push(raw[i]);
+  if(!pairs.length)for(var j=0;j<16;j++)pairs.push(K.randomPair('lucide',j+1));
+  var cells=[],cols=0,rows=0,cw=52,ch=52;
+  function build(){
+    var w=spec.clientWidth||window.innerWidth,h=spec.clientHeight||hero.offsetHeight||320;
+    var nc=Math.max(5,Math.round(w/54)),nr=Math.max(4,Math.round(h/54)),need=nc*nr;
+    cols=nc;rows=nr;cw=w/nc;ch=h/nr;
+    spec.style.gridTemplateColumns='repeat('+nc+',1fr)';
+    spec.style.gridTemplateRows='repeat('+nr+',1fr)';
+    while(cells.length<need){
+      var idx=cells.length,p=pairs[idx%pairs.length];
+      var m=document.createElement('morph-icon');
+      m.setAttribute('name',p[0]);m.setAttribute('size','18');m.setAttribute('duration','460');m.setAttribute('easing','spring');m.setAttribute('aria-hidden','true');
+      spec.appendChild(m);
+      cells.push({el:m,a:p[0],b:p[1],busy:0});
+    }
+    for(var k=0;k<cells.length;k++)cells[k].el.style.display=k<need?'':'none';
+  }
+  build();
+  window.addEventListener('resize',build);
+  function ripple(clientX,clientY,rad){
+    if(RM)return;
+    var r=spec.getBoundingClientRect(),x=clientX-r.left,y=clientY-r.top,now=performance.now(),n=cols*rows;
+    for(var i=0;i<n;i++){
+      var c=cells[i];if(!c||now<c.busy)continue;
+      var col=i%cols,row=(i-col)/cols,cx=(col+.5)*cw,cy=(row+.5)*ch;
+      var dx=cx-x,dy=cy-y,d=Math.sqrt(dx*dx+dy*dy);
+      if(d<=rad){
+        c.busy=now+1100;
+        (function(cell,delay){
+          setTimeout(function(){
+            cell.el.classList.add('rip');
+            cell.el.setAttribute('name',cell.b);
+          },delay);
+          setTimeout(function(){
+            cell.el.classList.remove('rip');
+            cell.el.setAttribute('name',cell.a);
+          },delay+620);
+        })(c,Math.round(d*1.4));
+      }
+    }
+  }
+  function inBand(e){var r=hero.getBoundingClientRect();return e.clientY>=r.top&&e.clientY<=r.bottom}
+  window.addEventListener('pointermove',function(e){if(e.pointerType!=='touch'&&inBand(e))ripple(e.clientX,e.clientY,115)},{passive:true});
+  window.addEventListener('pointerdown',function(e){if(inBand(e))ripple(e.clientX,e.clientY,165)},{passive:true});
+})();
 /* hero buttons: the icon changes on hover, and points down on click (both buttons jump down the page) */
 document.querySelectorAll('.hero .row a').forEach(function(a,i){
   var ic=[['shapes','sparkles'],['terminal','square-terminal']][i];if(!ic)return;
@@ -13626,27 +13737,23 @@ document.querySelectorAll('.hero .row a').forEach(function(a,i){
   a.addEventListener('blur',function(){over=false;show()});
   a.addEventListener('click',function(){clearTimeout(t);m.setAttribute('name','arrow-down');t=setTimeout(function(){t=0;show()},900)});
 });
-var HP=pick('lucide',[['bug','bird'],['folder-key','bug']],5);
-var hink=K.colorView($('#hink'),{from:HP[0],to:HP[1],family:'lucide',color:false,dots:false,ties:false,loop:false,duration:1800,easing:'easeInOutCubic'});
-var hplain=K.blendView($('#hplain'),{from:HP[0],to:HP[1],family:'lucide',color:false,sync:hink});
-/* the playhead moves back and forth by itself; grab it to scrub, and it starts again from there after a short rest */
+/* frame comparison: 7 fixed moments, sloptweening on top, shapcn below */
 (function(){
-  var hr=$('#hrange'),D=1800,HOLD=500,REST=1500,CYC=2*D+2*HOLD,phase=0,last=0,held=false,restUntil=0;
-  function ease(k){return k<.5?4*k*k*k:1-Math.pow(-2*k+2,3)/2}
-  function tAt(p){if(p<D)return ease(p/D);if(p<D+HOLD)return 1;if(p<2*D+HOLD)return ease(1-(p-D-HOLD)/D);return 0}
-  /* the phase that shows t on the way forward (the eased curve rises, so halve the interval) */
-  function phaseOf(t){if(t>=.999)return D;var a=0,b=1;for(var i=0;i<24;i++){var m=(a+b)/2;if(ease(m)<t)a=m;else b=m}return a*D}
-  function show(t){hink.setT(t);hr.value=t}
-  function tick(now){
-    var dt=last?Math.min(64,now-last):0;last=now;
-    if(!held&&now>=restUntil){phase=(phase+dt)%CYC;show(tAt(phase))}
-    requestAnimationFrame(tick);
+  var rowS=$('#fcslop'),rowI=$('#fcink'),tl=$('#fct'),pb=$('#fcpairs');if(!rowS||!rowI)return;
+  var T=[0,1/6,1/3,.5,2/3,5/6,1],TL=['0','0.17','0.33','0.5','0.67','0.83','1'];
+  var PAIRS=[['bug','bird'],['menu','x'],['sun','moon'],['bell','bell-off']].filter(function(p){return has('lucide',p[0])&&has('lucide',p[1])});
+  TL.forEach(function(x){var d=document.createElement('div');d.textContent='t = '+x;tl.appendChild(d)});
+  var slop=[],strip=null,btns=[];
+  T.forEach(function(t){var d=document.createElement('div');rowS.appendChild(d);slop.push(K.blendView(d,{from:PAIRS[0][0],to:PAIRS[0][1],family:'lucide',color:false,dots:false,t:t}))});
+  function setPair(i){
+    var p=PAIRS[i];
+    slop.forEach(function(v,k){v.setPair(p[0],p[1],'lucide');v.setT(T[k])});
+    if(strip)strip.set(p[0],p[1],'lucide');
+    else strip=K.frameStrip(rowI,{from:p[0],to:p[1],family:'lucide',frames:7,size:64,color:false});
+    btns.forEach(function(b,k){b.setAttribute('aria-pressed',k===i?'true':'false')});
   }
-  function rest(){held=false;restUntil=performance.now()+REST;phase=phaseOf(+hr.value)}
-  hr.addEventListener('pointerdown',function(){held=true});
-  hr.addEventListener('pointerup',rest);hr.addEventListener('pointercancel',rest);
-  hr.addEventListener('input',function(){hink.setT(+hr.value);if(!held)rest()});
-  if(!RM)requestAnimationFrame(tick);
+  PAIRS.forEach(function(p,i){var b=document.createElement('button');b.type='button';b.className='btn alt';b.textContent=p[0]+' to '+p[1];b.addEventListener('click',function(){setPair(i)});pb.appendChild(b);btns.push(b)});
+  setPair(0);
 })();
 
 /* examples: five live tiles (rules C2.R2 same anatomy, C2.R4 44 px, C3.R2 equal peers, C8.R1 wait on the button, C8.R5 state in the label) */
@@ -13865,7 +13972,6 @@ function curveSVG(id){
   for(var i=0;i<=40;i++){var t=i/40,y=y0-(y0-y1)*f(t)/1.37*1.0;y=Math.max(1,Math.min(H-1,y0-(y0-4)*f(t)/1.6));d+=(i?'L':'M')+(2+t*(W-4)).toFixed(1)+' '+y.toFixed(1)}
   return '<svg class="fcurve" viewBox="0 0 '+W+' '+H+'" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+d+'"/></svg>';
 }
-function endsHTML(){return '<span class="fends" aria-hidden="true">'+K.iconSVG(cur.from,cur.fam,18)+'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>'+K.iconSVG(cur.to,cur.fam,18)+'</span>'}
 
 /* family menu: the chevron turns up while the menu is open */
 var pf=$('#pfam');
@@ -13882,12 +13988,10 @@ K.families.forEach(function(f){var o=document.createElement('option');o.value=f.
 var feelsEl=$('#pfeels'),tiles=[];
 FEELS.forEach(function(f){
   var b=document.createElement('button');b.type='button';b.className='feel';b.setAttribute('role','radio');b.setAttribute('data-f',f[0]);
-  b.innerHTML='<span class="fstage"></span><span class="fname"></span>'+curveSVG(f[0])+endsHTML();
+  b.innerHTML='<span class="fname"></span>'+curveSVG(f[0]);
   b.querySelector('.fname').textContent=f[1];b.setAttribute('aria-label',f[1]+'. '+f[2]);
   feelsEl.appendChild(b);
-  var v=K.colorView(b.querySelector('.fstage'),{from:cur.from,to:cur.to,family:cur.fam,t:0,color:false,dots:false,ties:false,loop:!RM,duration:dur,easing:f[0],planEasing:true});
-  if(RM)v.setT(1);
-  tiles.push({id:f[0],btn:b,view:v});
+  tiles.push({id:f[0],btn:b});
 });
 function markFeel(focus){
   tiles.forEach(function(t){var on=t.id===feel;t.btn.setAttribute('aria-checked',String(on));t.btn.tabIndex=on?0:-1;if(on&&focus)t.btn.focus()});
@@ -13916,15 +14020,12 @@ tiles.forEach(function(t,i){
   });
 });
 
-/* set a pair on all three tiles; the first view may replace a pair that cannot plan */
+/* set a pair on the preview; the first view may replace a pair that cannot plan */
 function applyPair(a,b,fam){
-  var v0=tiles[0].view;v0.pause();v0.setPair(a,b,fam);var inf=v0.info();
-  tiles.slice(1).forEach(function(t){t.view.pause();t.view.setPair(inf.from,inf.to,inf.family)});
-  tiles.forEach(function(t){if(RM){t.view.setOptions({loop:false});t.view.setT(1)}else{t.view.setT(0);t.view.setOptions({loop:true})}});
+  tech.pause();tech.setPair(a,b,fam);var inf=tech.info();
   cur={fam:inf.family,from:inf.from,to:inf.to};
   tech.pause();tech.setPair(inf.from,inf.to,inf.family);if(RM){tech.setOptions({loop:false});tech.setT(1)}else{tech.setT(0);tech.setOptions({loop:true})}
   clearTimeout(techTimer);strip.set(inf.from,inf.to,inf.family);strip.setActive(null);
-  tiles.forEach(function(t){var e=t.btn.querySelector('.fends');if(e)e.outerHTML=endsHTML()});
   useReset();
 }
 function usePair(a,b){
@@ -13936,7 +14037,7 @@ function randPair(){var p=K.randomPair(pf.value);usePair(p[0],p[1])}
 pf.addEventListener('change',function(){closePicker();randPair()});
 $('#prand').addEventListener('click',randPair);
 $('#pswap').addEventListener('click',function(){usePair(cur.to,cur.from)});
-$('#pdur').addEventListener('input',function(e){dur=+e.target.value;$('#pdurv').textContent=dur+' ms';tiles.forEach(function(t){t.view.setOptions({duration:dur})});useSync();renderSnip()});
+$('#pdur').addEventListener('input',function(e){dur=+e.target.value;$('#pdurv').textContent=dur+' ms';useSync();renderSnip()});
 
 /* swap and random: the icon changes on every press */
 (function(){

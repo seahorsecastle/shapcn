@@ -1,6 +1,6 @@
 # shapcn
 
-> Morph any icon into any other, the way an animator would. Change the name of a <morph-icon> element and the engine plans every frame.
+> Morph icons like a pro. Change the icon name. shapcn animates the rest. The engine plans every morph live, shape by shape.
 
 The script tag works today. The npm package is `shape-aware-morph` (coming soon).
 
