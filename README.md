@@ -1,14 +1,18 @@
 # shapcn
 
-**Morph icons like a pro.**
+**Shape-aware icon morphing**
 
 Change the icon name. shapcn animates the rest.
 
-shapcn plans every morph live, shape by shape. No keyframes, no timeline, no sloptweening. It weighs each shape of an icon, rigs the small parts to the shape they touch, and decides what morphs, what moves, and when.
+Any icon morphs into any other. shapcn rigs the shapes first, so parts move in order instead of every point sliding at once.
 
 Website and playground: https://shapcn.com. Docs: https://shapcn.com/docs.
 
-## Use it today
+## Install
+
+Status: the script tag works today. The npm package is in progress. Source is on GitHub.
+
+### Script tag
 
 ```html
 <script type="module" src="https://shapcn.com/morph-icon.js"></script>
@@ -17,7 +21,7 @@ Website and playground: https://shapcn.com. Docs: https://shapcn.com/docs.
 <!-- set name="x" and it morphs -->
 ```
 
-Easing: `smooth`, `spring`, or `bouncy`. The script includes all Lucide icons.
+Easing: `smooth`, `spring`, or `elastic`. The script includes all 1,858 Lucide icons.
 
 Add `hover="alive"` and the icon comes alive a little on hover or focus, then rests (it does not change into another icon):
 
@@ -25,7 +29,23 @@ Add `hover="alive"` and the icon comes alive a little on hover or focus, then re
 <morph-icon name="sun" hover="alive"></morph-icon>
 ```
 
-The npm package `shape-aware-morph` is coming soon. To build from source, see `package/` and Develop below. The shadcn registry comes next.
+### npm
+
+The package `shape-aware-morph` is in progress. It is not on npm yet.
+
+### Build from source
+
+```sh
+git clone https://github.com/seahorsecastle/shapcn.git
+cd shapcn/package
+npm install && npm run build
+```
+
+The build writes `dist/morph-icon.js`.
+
+### Sizes
+
+75 KB engine, gzipped. 220 KB with all 1,858 Lucide icons.
 
 ## Use with AI coding agents
 
@@ -37,7 +57,7 @@ A plain-text summary for any model is at https://shapcn.com/llms.txt.
 
 - `package/`: the engine and the npm package source, with tests and build.
 - `skills/shapcn`: the agent skill.
-- `.github`: CI.
+- `.github`: CI, issue and pull request templates.
 
 ## Develop
 

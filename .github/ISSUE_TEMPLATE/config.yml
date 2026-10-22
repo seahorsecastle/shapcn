@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://shapcn.com/docs
+    about: Read the docs before you open an issue.

@@ -1,0 +1,44 @@
+name: Bug report
+description: A morph looks wrong or breaks.
+labels: [bug]
+body:
+  - type: input
+    id: icons
+    attributes:
+      label: Which two icons?
+      description: The icon you start with and the icon you morph into.
+      placeholder: menu to x
+    validations:
+      required: true
+  - type: input
+    id: family
+    attributes:
+      label: Which icon family?
+      placeholder: lucide
+    validations:
+      required: true
+  - type: input
+    id: timing
+    attributes:
+      label: Easing and duration
+      placeholder: spring, 420
+    validations:
+      required: true
+  - type: textarea
+    id: wrong
+    attributes:
+      label: What looked wrong?
+      description: Say what you saw and what you expected.
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and version
+      placeholder: Chrome 130
+    validations:
+      required: true
+  - type: input
+    id: recording
+    attributes:
+      label: Screen recording link (optional)
