@@ -88,7 +88,9 @@ Then:
 ```vue
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
-import { defineMorphIcon } from 'shape-aware-morph'; // npm path; skip with the script tag
+import { defineMorphIcon, registerIcons } from 'shape-aware-morph'; // npm path; skip with the script tag
+import { sun, moon } from 'shape-aware-morph/lucide';
+registerIcons({ sun, moon });
 const dark = ref(false);
 onMounted(() => defineMorphIcon());
 </script>
@@ -107,7 +109,9 @@ Svelte supports custom elements with no setup:
 ```svelte
 <script>
   import { onMount } from 'svelte';
-  import { defineMorphIcon } from 'shape-aware-morph';  // npm path
+  import { defineMorphIcon, registerIcons } from 'shape-aware-morph';  // npm path
+  import { check, copy } from 'shape-aware-morph/lucide';
+  registerIcons({ check, copy });
   let done = false;
   onMount(() => defineMorphIcon());                      // browser only
 </script>
