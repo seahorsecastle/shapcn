@@ -4,7 +4,7 @@ shapcn on npm is `shape-aware-morph`.
 
 Morph any icon into any other, the way an animator would.
 
-Site and live demo: https://shapcn.com
+Website and live demo: https://shapcn.com
 
 ## Install
 

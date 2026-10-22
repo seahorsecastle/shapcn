@@ -30,7 +30,6 @@ The generated icon modules and `dist/` are not in git. Do not edit them by hand.
 - `package/dom.js`: the `<morph-icon>` element.
 - `package/svg.js`: `registerSVGs`, which turns your own SVG files into icons.
 - `package/data/`: the icon data that the build reads.
-- `site/`: the website at shapcn.com.
 
 ## The motion rules
 

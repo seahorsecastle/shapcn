@@ -8413,7 +8413,7 @@ function finishPlan(slots, A, B, coarseA, coarseB, o, rules, turnDeg, dA, dB, ex
     if (s.anchor >= 0) s.depth = slots[s.anchor].depth - 0.001;
     else s.depth = s.kind === 'exit' ? (s.fromIndex >= 0 ? dA[s.fromIndex] : 0.5) : s.toIndex >= 0 ? dB[s.toIndex] : 0.5;
   }
-  // R11-2: the attachment of every slot, for the tester and the site.
+  // R11-2: the attachment of every slot, for the tester.
   for (const s of slots) {
     if (s.kind === 'exit' || s.kind === 'enter') {
       s.parentSlot = s.anchor;
