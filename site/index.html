@@ -247,6 +247,37 @@ section.how .story{border-top:0;padding-top:0}
 .code small{display:block;color:var(--sec);font-size:13px;margin-bottom:2px}
 .code code{display:block;overflow-x:auto;white-space:pre;padding-bottom:2px}
 .code .btn{flex:none;padding:8px 12px;font-size:14px}
+/* usage */
+#usage .sz{list-style:none;margin:0 0 8px;padding:0;border:1px solid var(--border);border-radius:12px;background:var(--surface)}
+#usage .sz li{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:12px 16px;border-top:1px solid var(--border);font-size:16px}
+#usage .sz li:first-child{border-top:0}
+#usage .sz .v{font-family:var(--mono);font-size:14px;white-space:nowrap}
+#usage .sz small{color:var(--sec);font-size:13px;margin-left:8px}
+#usage .note{color:var(--sec);font-size:14px;margin:0 0 40px}
+#usage h3{font-size:clamp(20px,2.6vw,24px);margin-bottom:16px}
+#usage .tabs{display:flex;gap:8px;margin-bottom:12px}
+#usage .tab{min-height:44px;padding:8px 18px;border-radius:10px;border:1px solid var(--border);background:#fff;color:var(--ink);font-size:15px;font-weight:600;cursor:pointer}
+#usage .tab[aria-selected="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+#usage .ug{display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:24px;align-items:start}
+#usage .diff{overflow-x:auto;background:var(--surface);border:1px solid var(--border);border-radius:12px;font-family:var(--mono);font-size:13px;line-height:1.6;padding:8px 0}
+#usage .diff[hidden]{display:none}
+#usage .dl{display:block;white-space:pre;width:max-content;min-width:100%;padding:0 16px}
+#usage .dl .sg{display:inline-block;width:2ch;font-weight:700}
+#usage .dl.del{background:rgba(220,38,38,.12)}
+#usage .dl.del .sg{color:#b91c1c}
+#usage .dl.add{background:rgba(22,163,74,.14)}
+#usage .dl.add .sg{color:#15803d}
+#usage .dl.hd{color:var(--muted)}
+#usage .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+#usage .res{display:flex;flex-direction:column;gap:12px;align-items:flex-start}
+#usage .res small{color:var(--sec);font-size:13px}
+#usage .res .btn{min-width:132px;justify-content:center}
+@media (max-width:760px){
+  #usage .ug{grid-template-columns:minmax(0,1fr);gap:16px}
+  #usage .sz li{font-size:15px;padding:12px}
+  #usage .sz small{display:block;margin:2px 0 0}
+  #usage .diff{font-size:12px}
+}
 footer a{color:var(--sec)}
 footer{padding:32px 0 64px;border-top:1px solid var(--border);color:var(--sec);font-size:14px;display:flex;flex-direction:column;gap:6px}
 @media (max-width:760px){
@@ -295,7 +326,7 @@ footer{padding:32px 0 64px;border-top:1px solid var(--border);color:var(--sec);f
 <div class="wrap">
   <nav>
     <b>shapcn</b>
-    <div><a href="#examples">Examples</a><a href="#play">Playground</a><a href="#compare">Compare</a><a href="#how">How it works</a><a href="#install">Install</a><a href="/docs">Docs</a><a href="https://github.com/seahorsecastle/shapcn" target="_blank" rel="noopener">GitHub</a></div>
+    <div><a href="#examples">Examples</a><a href="#play">Playground</a><a href="#compare">Compare</a><a href="#how">How it works</a><a href="#usage">Usage</a><a href="#install">Install</a><a href="/docs">Docs</a><a href="https://github.com/seahorsecastle/shapcn" target="_blank" rel="noopener">GitHub</a></div>
   </nav>
   <!-- Direction P1: Specimen field
        1. Added an edge-to-edge specimen field of low-opacity live Lucide icons behind the hero copy with a soft white fade.
@@ -428,6 +459,52 @@ footer{padding:32px 0 64px;border-top:1px solid var(--border);color:var(--sec);f
   </div>
 </section>
 
+<section class="blk" id="usage" aria-labelledby="usage-h">
+  <div class="wrap">
+    <div class="head"><div><h2 id="usage-h">Usage</h2><p>One script, one tag. Here is what you download and what changes in your code.</p></div></div>
+    <h3>What you download</h3>
+    <ul class="sz">
+      <li><span>Script tag <small>All Lucide icons included</small></span><span class="v">220 KB gzipped</span></li>
+      <li><span>npm, engine only <small>Coming soon</small></span><span class="v">70 KB gzipped</span></li>
+      <li><span>npm, engine + 2 icons <small>Coming soon</small></span><span class="v">70 KB gzipped</span></li>
+      <li><span>npm, all Lucide <small>Coming soon</small></span><span class="v">171 KB gzipped</span></li>
+    </ul>
+    <p class="note">Icons you do not import are not downloaded (npm).</p>
+    <h3>In your code</h3>
+    <div class="tabs" role="tablist" aria-label="Code example">
+      <button class="tab" type="button" role="tab" id="utab-html" aria-controls="upanel-html" aria-selected="true">HTML</button>
+      <button class="tab" type="button" role="tab" id="utab-react" aria-controls="upanel-react" aria-selected="false" tabindex="-1">React</button>
+    </div>
+    <div class="ug">
+      <div>
+        <div class="diff" role="tabpanel" id="upanel-html" aria-labelledby="utab-html" tabindex="0"><span class="dl ctx"><span class="sg" aria-hidden="true"> </span><span class="sr"></span>&lt;head&gt;</span>
+<span class="dl add"><span class="sg" aria-hidden="true">+</span><span class="sr">Added: </span>  &lt;script type=&quot;module&quot; src=&quot;https://shapcn.com/morph-icon.js&quot;&gt;&lt;/script&gt;</span>
+<span class="dl ctx"><span class="sg" aria-hidden="true"> </span><span class="sr"></span>&lt;/head&gt;</span>
+<span class="dl ctx"><span class="sg" aria-hidden="true"> </span><span class="sr"></span>&lt;button id=&quot;toggle&quot;&gt;</span>
+<span class="dl del"><span class="sg" aria-hidden="true">-</span><span class="sr">Removed: </span>  &lt;svg viewBox=&quot;0 0 24 24&quot;&gt;&lt;path d=&quot;m6 3 14 9-14 9z&quot;/&gt;&lt;/svg&gt;</span>
+<span class="dl add"><span class="sg" aria-hidden="true">+</span><span class="sr">Added: </span>  &lt;morph-icon name=&quot;play&quot;&gt;&lt;/morph-icon&gt;</span>
+<span class="dl ctx"><span class="sg" aria-hidden="true"> </span><span class="sr"></span>&lt;/button&gt;</span>
+<span class="dl ctx"><span class="sg" aria-hidden="true"> </span><span class="sr"></span>&lt;script&gt;</span>
+<span class="dl ctx"><span class="sg" aria-hidden="true"> </span><span class="sr"></span>  toggle.onclick = () =&gt; {</span>
+<span class="dl ctx"><span class="sg" aria-hidden="true"> </span><span class="sr"></span>    playing = !playing;</span>
+<span class="dl del"><span class="sg" aria-hidden="true">-</span><span class="sr">Removed: </span>    toggle.innerHTML = playing ? PAUSE_SVG : PLAY_SVG;</span>
+<span class="dl add"><span class="sg" aria-hidden="true">+</span><span class="sr">Added: </span>    toggle.firstElementChild.setAttribute(&#x27;name&#x27;, playing ? &#x27;pause&#x27; : &#x27;play&#x27;);</span>
+<span class="dl ctx"><span class="sg" aria-hidden="true"> </span><span class="sr"></span>  };</span>
+<span class="dl ctx"><span class="sg" aria-hidden="true"> </span><span class="sr"></span>&lt;/script&gt;</span></div>
+        <div class="diff" role="tabpanel" id="upanel-react" aria-labelledby="utab-react" tabindex="0" hidden><span class="dl hd"><span class="sg" aria-hidden="true">@@</span> index.html</span>
+<span class="dl add"><span class="sg" aria-hidden="true">+</span><span class="sr">Added: </span>&lt;script type=&quot;module&quot; src=&quot;https://shapcn.com/morph-icon.js&quot;&gt;&lt;/script&gt;</span>
+<span class="dl hd"><span class="sg" aria-hidden="true">@@</span> PlayButton.jsx</span>
+<span class="dl del"><span class="sg" aria-hidden="true">-</span><span class="sr">Removed: </span>import { Play, Pause } from &#x27;lucide-react&#x27;;</span>
+<span class="dl ctx"><span class="sg" aria-hidden="true"> </span><span class="sr"></span>&lt;button onClick={() =&gt; setPlaying(!playing)}&gt;</span>
+<span class="dl del"><span class="sg" aria-hidden="true">-</span><span class="sr">Removed: </span>  {playing ? &lt;Pause /&gt; : &lt;Play /&gt;}</span>
+<span class="dl add"><span class="sg" aria-hidden="true">+</span><span class="sr">Added: </span>  &lt;morph-icon name={playing ? &#x27;pause&#x27; : &#x27;play&#x27;} /&gt;</span>
+<span class="dl ctx"><span class="sg" aria-hidden="true"> </span><span class="sr"></span>&lt;/button&gt;</span></div>
+      </div>
+      <div class="res"><small>The result</small><button class="btn alt" type="button" id="udemo" aria-label="Play"><morph-icon id="udemoi" name="play" size="20" duration="500" aria-hidden="true"></morph-icon><span id="udemot">Play</span></button></div>
+    </div>
+  </div>
+</section>
+
 <section class="blk" id="install">
   <div class="wrap">
     <div class="head"><div><h2>Install</h2><p>The script tag works today. The npm package comes next.</p></div></div>
@@ -440,6 +517,15 @@ footer{padding:32px 0 64px;border-top:1px solid var(--border);color:var(--sec);f
   </div>
 </section>
 
+<script>
+(function(){
+var tabs=[].slice.call(document.querySelectorAll('#usage .tab'));
+function show(t){tabs.forEach(function(b){var on=b===t;b.setAttribute('aria-selected',on);b.tabIndex=on?0:-1;document.getElementById(b.getAttribute('aria-controls')).hidden=!on})}
+tabs.forEach(function(b,i){b.addEventListener('click',function(){show(b)});b.addEventListener('keydown',function(e){var j=e.key==='ArrowRight'?i+1:e.key==='ArrowLeft'?i-1:-1;if(j<0)return;var n=tabs[(j+tabs.length)%tabs.length];show(n);n.focus();e.preventDefault()})});
+var d=document.getElementById('udemo'),ic=document.getElementById('udemoi'),tx=document.getElementById('udemot'),on=false;
+if(d)d.addEventListener('click',function(){on=!on;ic.setAttribute('name',on?'pause':'play');tx.textContent=on?'Pause':'Play';d.setAttribute('aria-label',on?'Pause':'Play')});
+})();
+</script>
 
 <div class="wrap">
   <footer>
