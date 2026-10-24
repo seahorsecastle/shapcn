@@ -6,8 +6,13 @@ export type IconSource = string | IconNode | Record<string, unknown>;
 export type EasingName = 'linear' | 'easeInOutCubic' | 'easeOutCubic' | 'smooth' | 'spring' | 'elastic' | 'gentle';
 export type EasingFn = (t: number) => number;
 export type EffectName = 'implode' | 'explode' | 'assemble' | 'draw' | 'erase' | 'scale' | 'expand';
-/** The hover styles. `alive` is the old name of `wiggle`. */
-export type HoverStyle = 'wiggle' | 'grow' | 'bend' | 'bold' | 'cascade' | 'move';
+/** The hover styles. */
+export type HoverStyle = 'grow' | 'bend' | 'bold' | 'cascade' | 'move';
+/**
+ * @deprecated `wiggle` (and its old name `alive`) still works but will be removed in 0.3.0. Use `grow`, `bend` or `move`.
+ * The first use logs one console warning per page.
+ */
+export type DeprecatedHoverStyle = 'wiggle' | 'alive';
 /** The press styles. `anticipate-jump` is the old name of `squat-jump`. */
 export type PressStyle = 'pop' | 'squash' | 'squat-jump' | 'burst';
 
@@ -42,8 +47,8 @@ export interface Plan {
 export function planMorph(from: IconSource, to: IconSource, opts?: MorphOptions): Plan;
 export function planEffect(name: IconSource, direction: 'in' | 'out', effect: EffectName, opts?: MorphOptions): Plan;
 export interface HoverPlanOptions extends MorphOptions {
-  /** A hover style. Default: `wiggle`, the motion the rig picks for the icon. */
-  style?: HoverStyle | 'alive';
+  /** A hover style. Default: `wiggle` (deprecated, it warns once per page). In 0.3.0 the default becomes `grow`; pass a style to be safe. */
+  style?: HoverStyle | DeprecatedHoverStyle;
   /** 0.5 to 3. Default 1.5. */
   strength?: number;
   /** `bold` only: `'down'` swells and stays (frame 1 is the held weight). Leave the pointer with `retargetPlan(plan, t, true)`. */
@@ -51,7 +56,7 @@ export interface HoverPlanOptions extends MorphOptions {
   /** `move` only: the pointer velocity before the plan starts, each axis from -1 to 1. */
   velocity?: { vx: number; vy?: number };
 }
-/** A one-shot hover plan. frame(0) and frame(1) are the rest icon. Never changes the icon. */
+/** A one-shot hover plan. frame(0) and frame(1) are the rest icon. Never changes the icon. Without `style` it plays the deprecated `wiggle` (0.2.2); the default becomes `grow` in 0.3.0. */
 export function planAlive(name: IconSource, opts?: HoverPlanOptions): Plan & { kind: string };
 export interface PressPlanOptions extends MorphOptions {
   /** A press style. Default `pop`. */
@@ -86,7 +91,7 @@ export interface Sway {
   [key: string]: unknown;
 }
 export function createSway(name: IconSource, opts?: { strength?: number; duration?: number }): Sway;
-/** The hover styles of this version. */
+/** The hover styles of this version (without the deprecated `wiggle`). */
 export const HOVER_STYLES: readonly HoverStyle[];
 /** The press styles of this version. */
 export const PRESS_STYLES: readonly PressStyle[];
@@ -143,6 +148,11 @@ export interface RegisterSVGsOptions {
 }
 /** Register your own SVG icons from markup (path, line, polyline, polygon, circle, ellipse, rect; viewBox scaled to 24). Returns the registered names. */
 export function registerSVGs(svgs: Record<string, string>, opts?: RegisterSVGsOptions): string[];
+/**
+ * Forget icons: removes each name from the registry and drops the caches keyed by it. The four `shape:` icons stay, unknown names are ignored.
+ * Use it in long-lived pages. Returns how many icons were removed. Plans of other icons do not change.
+ */
+export function unregisterIcons(names: string | Iterable<string>): number;
 export function getIconNames(withShapes?: boolean): string[];
 export function getIconInfo(name: string | IconNode): { nodes: IconNode; family: { id: string; kind: 'stroke' | 'fill'; viewBox: string; strokeWidth: number } };
 export function getFamily(id: string): Record<string, unknown> | null;
@@ -157,7 +167,7 @@ export interface MorphIconOptions extends MorphOptions {
   duration?: number;
   respectReducedMotion?: boolean;
   /** Hover style. `alive` is the old name of `wiggle`. */
-  hover?: HoverStyle | 'alive' | null;
+  hover?: HoverStyle | DeprecatedHoverStyle | null;
   /** Milliseconds. Default: 600 for wiggle, 400 for grow and bend, 250 for bold, 500 for cascade, 900 for move. */
   aliveDuration?: number;
   /** Press style. */
@@ -221,7 +231,7 @@ export interface MorphIconAttributes {
   easing?: string;
   stagger?: number | string;
   effect?: EffectName | (string & {});
-  hover?: HoverStyle | 'alive' | (string & {});
+  hover?: HoverStyle | DeprecatedHoverStyle | (string & {});
   press?: PressStyle | 'anticipate-jump' | (string & {});
   /** 0.5 to 3. Default 1.5. */
   'hover-strength'?: number | string;

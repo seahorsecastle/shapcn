@@ -484,15 +484,23 @@ function alStrokeWidth(name) {
 // is no fading, and two strokes that meet at a point move together in every frame. The default strength is 1.5.
 // ---------------------------------------------------------------------------
 
-/** The hover styles. `hover="alive"` is the old name of `wiggle`. */
-export const HOVER_STYLES = Object.freeze(['wiggle', 'grow', 'bend', 'bold', 'cascade', 'move']);
+/** The hover styles. `wiggle` (and its old name `alive`) is deprecated: it still works, but it is not in this list. */
+export const HOVER_STYLES = Object.freeze(['grow', 'bend', 'bold', 'cascade', 'move']);
 /** The press styles. `anticipate-jump` is the old name of `squat-jump`. */
 export const PRESS_STYLES = Object.freeze(['pop', 'squash', 'squat-jump', 'burst']);
+
+let wiggleWarned = false;
+// One console.warn per page, the first time the deprecated wiggle is used.
+function warnWiggle() {
+  if (wiggleWarned) return;
+  wiggleWarned = true;
+  if (typeof console !== 'undefined' && console.warn) console.warn('shapcn: hover="wiggle" is deprecated and will be removed in 0.3.0; use grow, bend, bold, cascade or move');
+}
 
 const HOVER_ALIAS = Object.freeze({ wiggle: 'alive' });
 const PRESS_ALIAS = Object.freeze({ 'anticipate-jump': 'squat-jump' });
 /** Is this a hover name the element or `planAlive` accepts? */
-export const isHoverStyle = (name) => HOVER_STYLES.includes(name) || name === 'alive';
+export const isHoverStyle = (name) => HOVER_STYLES.includes(name) || name === 'alive' || name === 'wiggle';
 /** Is this a press name the element or `planPress` accepts? */
 export const isPressStyle = (name) => PRESS_STYLES.includes(name) || name === 'anticipate-jump';
 /** The internal name of a hover style (`wiggle` is `alive`). */
@@ -1369,6 +1377,47 @@ function planPressTo(name, to, opts) {
         return dOf(alWarp(key, c, prepPiece(P), t, g));
       })
       .join('');
+  // The press that runs draws a chained stroke as one polyline, bridge lines included (its plan is built from the chained strokes),
+  // while the morph draws the strokes apart. A press that joins it starts from the same picture: the bridge lines of the old icon
+  // are drawn at the join and retract into the stroke over the first BRIDGE_OUT of the plan, then the strokes are apart as in the morph.
+  const BRIDGE_OUT = 0.15;
+  const bridges = [];
+  if (fromT > 0) {
+    try {
+      const g0 = { ...DEFAULTS, ...opts, ...joinGeo };
+      const SS = iconToStrokes(name, g0.cornerAngle, g0.chainGap, g0.chainAngle);
+      for (const st of SS) {
+        if (!st.vis || st.bridges <= 0) continue;
+        const P = st.pts;
+        const np = P.length / 2;
+        const at = (k) => [P[2 * (k % np)], P[2 * (k % np) + 1]];
+        let run = null;
+        for (let k = 0; k < st.vis.length; k++) {
+          if (!st.vis[k]) {
+            if (!run) run = [...at(k)];
+            run.push(...at(k + 1));
+          } else if (run) {
+            bridges.push({ P: Float64Array.from(run), opacity: st.opacity, sw: st.sw });
+            run = null;
+          }
+        }
+        if (run) bridges.push({ P: Float64Array.from(run), opacity: st.opacity, sw: st.sw });
+      }
+    } catch (e) {
+      bridges.length = 0;
+    }
+  }
+  // One geometry for frame() and snapshot(): the bridge pieces at plan time u, warped like the rest of the picture.
+  const bridgePieces = (u, t, c, gg) => {
+    if (!bridges.length || u >= BRIDGE_OUT) return [];
+    const keep = 1 - alSmooth(u / BRIDGE_OUT);
+    const out = [];
+    for (const B of bridges) {
+      const piece = keep < 1 ? alTrim(B.P, keep) : B.P;
+      if (piece.length >= 4) out.push({ points: alWarp(key, c, prepPiece(piece), t, gg), opacity: Number.isFinite(B.opacity) ? B.opacity : 1, sw: B.sw });
+    }
+    return out;
+  };
   const frameAt = (u, g) => {
     const t = pressT(u);
     const entries = morph.frame(morphT(t, u));
@@ -1379,6 +1428,12 @@ function planPressTo(name, to, opts) {
       if (!e.d || e.d === 'M') continue;
       res.push({ ...e, d: warpD(e.d, t, gg, c) });
     }
+    // each bridge is its own entry with the opacity and the own width of the stroke it belongs to
+    bridgePieces(u, t, c, gg).forEach((B, k) => {
+      const e = { d: dOf(B.points), opacity: B.opacity, widthScale: 1, key: 100000 + k, slot: res.length ? res[0].slot : 0, depth: res.length ? res[0].depth || 0 : 0, occluder: false };
+      if (B.sw > 0) e.strokeWidth = B.sw;
+      res.push(e);
+    });
     return res;
   };
   // R15-5: the largest gain that keeps the combined frames inside the bound.
@@ -1438,6 +1493,11 @@ function planPressTo(name, to, opts) {
       const D = alDensifyVis(L.points, L.vis);
       return { ...L, points: alWarp(key, c, D.points, t, gg), vis: D.vis };
     });
+    for (const B of bridgePieces(u, t, c, gg)) {
+      const lp = { points: B.points, opacity: B.opacity, widthScale: 1, vis: new Uint8Array(B.points.length / 2 - 1).fill(1) };
+      if (B.sw > 0) lp.strokeWidth = B.sw;
+      loops.push(lp);
+    }
     return { ...snap, loops };
   };
   return plan;
@@ -1463,7 +1523,7 @@ export function planPress(name, opts = {}) {
  * - swing: a body with a long part at one end swings like a pendulum on a spring.
  * - pop (fallback): the whole icon dips, springs, and tilts.
  * @param {string|Array} name An icon name or an icon node.
- * @param {Object} [opts] Core knobs (`cornerAngle`, `chainGap`, `chainAngle`) are honored. `style`: one of `HOVER_STYLES` to use that hover style instead of the rig-picked wiggle.
+ * @param {Object} [opts] Core knobs (`cornerAngle`, `chainGap`, `chainAngle`) are honored. `style`: one of `HOVER_STYLES` to use that hover style instead of the rig-picked wiggle (deprecated).
  * @returns {{kind: string, frame: Function, snapshot: Function, slots: Array, occludes: Function, occlusion: string, turn: number, duration: number, strokeWidth: number, linecap: string, linejoin: string}}
  */
 export function planAlive(name, opts = {}) {
@@ -1477,6 +1537,7 @@ export function planAlive(name, opts = {}) {
   let denseOf = null;
   let liveInfo = null;
   let pressInfo = null;
+  if (!style) warnWiggle(); // the effective style is the deprecated wiggle: an explicit 'wiggle' or 'alive', or no style at all (the default)
   const kind = style ? { kind: style } : classifyAlive(S, T);
 
   // The rest polyline of each stroke. A closed stroke repeats its first point, so the drawn path closes.

@@ -841,7 +841,7 @@ function superSamples(f, M) {
 // B seen from the frame of A: the best of the four 90-degree variants of B's frame (cost: residual plus a small turn
 // penalty). Returns { fb (variant frame, th unwrapped next to fa.th), rms (relative shape distance), turn }.
 function analyzePair(A, B) {
-  const cache = A._pairs || (A._pairs = new Map());
+  const cache = A._pairs || (A._pairs = new WeakMap()); // weak: a contour of an icon that is unregistered must not stay alive through another icon's cache
   const hit = cache.get(B);
   if (hit) return hit;
   const fa = frameOf(A);

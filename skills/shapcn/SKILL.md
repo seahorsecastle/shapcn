@@ -63,7 +63,7 @@ Use the script tag for plain HTML, prototypes, and CMS pages.
 | `easing` | `easeInOutCubic` | `smooth`, `spring`, `elastic` are the three feels to offer. Also valid: `linear`, `easeInOutCubic`, `easeOutCubic`, `gentle`. |
 | `stagger` | `0` | 0 to 0.99. |
 | `effect` | `implode` (hide), `expand` (show) | `implode`, `explode`, `assemble`, `draw`, `erase`, `scale`, `expand`. |
-| `hover` | none | A hover style: `wiggle`, `grow`, `bend`, `bold`, `cascade`, `move`. Plays on pointer enter and on focus. The icon name does not change. `alive` is the old name of `wiggle`. |
+| `hover` | none | A hover style: `grow`, `bend`, `bold`, `cascade`, `move`. Plays on pointer enter and on focus. The icon name does not change. `wiggle` (old name `alive`) is deprecated: do not use it. |
 | `press` | none | A press style: `pop`, `squash`, `squat-jump`, `burst`. Plays on pointer down (a press or a tap), and on Enter and Space. |
 | `hover-strength`, `press-strength` | `1.5` | 0.5 to 3. |
 | `hover-duration`, `press-duration` | the style's own | Milliseconds. |
@@ -80,9 +80,9 @@ Methods (each returns a Promise): `morphTo(name)`, `hide()`, `show(name)`, `play
 
 ## Hover and press
 
-- `hover` styles: `wiggle` (the motion the icon's rig picks), `grow`, `bend`, `bold` (stays bold while hovered), `cascade`, `move` (sways with the pointer).
+- `hover` styles: `grow`, `bend`, `bold` (stays bold while hovered), `cascade`, `move` (sways with the pointer).
 - `press` styles: `pop`, `squash`, `squat-jump`, `burst`.
-- Use these names only. Other names do nothing (the wiggle plays).
+- Use these names only. Other names do nothing (the deprecated wiggle plays until 0.3.0, then nothing).
 - Put the icon inside a `<button>` or `<a>`. The hover plays when the pointer enters the button and when the button gets focus.
 - A press that changes the icon: add `press="burst"` and call `icon.pressTo('check')`. Setting `name` while a press runs does the same. Use it for delete to done, follow to following.
 - On a touch screen a tap plays the hover once.

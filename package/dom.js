@@ -23,6 +23,21 @@ const BASE = {
   pressStrength: 1.5,
 };
 
+// One shared document listener for every icon (not one per icon). A tap anywhere else lets go of a held hover (bold) on a touch
+// screen. Only the icons that hold a pose right now are in `heldIcons`, so the cost of a pointerdown does not grow with the page.
+const heldIcons = new Set();
+let docWired = false;
+function wireDocumentTap() {
+  if (docWired || typeof document === 'undefined') return;
+  docWired = true;
+  document.addEventListener('pointerdown', (e) => {
+    if (e.pointerType !== 'touch' || !heldIcons.size) return;
+    for (const mi of Array.from(heldIcons)) {
+      if (mi._holdPlan && mi._holdTarget && !mi._holdTarget.contains(e.target)) mi.leaveAlive().catch(() => {});
+    }
+  });
+}
+
 // The pointer's recent movement, for `hover="move"`. The page-wide history is kept for 300 ms.
 const ptrHist = [];
 let ptrWired = false;
@@ -161,6 +176,25 @@ export class MorphIcon {
     } else this.svg.innerHTML = iconInnerSVG(name);
   }
 
+  // Draw the rest icon at the end of a run. If the icon was unregistered while the run played, draw nothing, forget the name
+  // (the next name change draws the new icon at rest) and return false, so the caller settles its Promise with false.
+  _finishRest(name) {
+    try {
+      this._renderRest(name);
+      return true;
+    } catch (e) {
+      this._name = null;
+      this._renderEmpty();
+      return false;
+    }
+  }
+
+  // True when the icon on screen was unregistered: there is nothing to morph from, so a change draws the new icon at rest.
+  _gone() {
+    if (typeof this._name !== 'string' || this._name === null) return false;
+    try { getIconInfo(this._name); return false; } catch (e) { return true; }
+  }
+
   _renderEmpty() {
     this._hidden = true;
     this.svg.innerHTML = '';
@@ -189,6 +223,10 @@ export class MorphIcon {
         return Promise.resolve(true);
       }
       if (name === this._name) return Promise.resolve(true);
+      if (this._gone()) {
+        this.set(name);
+        return Promise.resolve(true);
+      }
       const duration = this._duration(o);
       if (duration <= 0) {
         this.set(name);
@@ -212,7 +250,7 @@ export class MorphIcon {
     try {
       if (this._hidden || this._name === null) return Promise.resolve(true);
       const duration = this._duration(o);
-      if (duration <= 0) {
+      if (duration <= 0 || this._gone()) {
         this._cancel();
         this._name = null;
         this._renderEmpty();
@@ -313,6 +351,7 @@ export class MorphIcon {
     this.svg.setAttribute('stroke-linecap', style.cap);
     this.svg.setAttribute('stroke-linejoin', style.join);
     this._holdPlan = null;
+    heldIcons.delete(this);
     this._live = { sway };
     const v = opts.velocity || { vx: 0.4, vy: 0 };
     sway.push(v.vx);
@@ -328,8 +367,7 @@ export class MorphIcon {
         if (sway.atRest) {
           this._live = null; // (already settled below: no pending resolver to call)
           this._raf = 0;
-          this._renderRest(this._name);
-          resolve(true);
+          resolve(this._finishRest(this._name));
           return;
         }
         this._raf = raf(tick);
@@ -393,7 +431,7 @@ export class MorphIcon {
    */
   pressTo(to, opts = {}) {
     const o = { ...this.opts, ...opts };
-    if (this._name == null || this._hidden || !to) return this.morphTo ? this.morphTo(to, opts) : Promise.resolve(false);
+    if (this._name == null || this._hidden || !to || this._gone()) return this.morphTo ? this.morphTo(to, opts) : Promise.resolve(false);
     if (o.respectReducedMotion !== false && reducedMotion()) {
       this._cancel();
       this.set(to);
@@ -428,6 +466,7 @@ export class MorphIcon {
   _play(plan, duration, endName, o, meta) {
     this._cancel();
     this._holdPlan = null;
+    heldIcons.delete(this);
     this._name = endName;
     this._hidden = false;
     // R9b: draw the plan at its own width and caps: the wrapper gets them, and the renderer uses the same width as its base.
@@ -451,11 +490,15 @@ export class MorphIcon {
             // A held pose (bold). The last frame stays until the pointer leaves.
             this._draw(plan, 1, ro);
             this._holdPlan = plan;
+            heldIcons.add(this);
             resolve(true);
             return;
           }
           if (endName === null) this._renderEmpty();
-          else this._renderRest(endName);
+          else if (!this._finishRest(endName)) {
+            resolve(false);
+            return;
+          }
           resolve(true);
           return;
         }
@@ -600,13 +643,8 @@ export function defineMorphIcon(tagName = 'morph-icon') {
         t.addEventListener(type, fn);
         this._wired.push([t, type, fn]);
       };
-      if (typeof document !== 'undefined') {
-        // A tap anywhere else lets go of a held hover on a touch screen.
-        on(document, 'pointerdown', (e) => {
-          const mi = this._mi;
-          if (mi && e.pointerType === 'touch' && holds(mi) && mi._holdPlan && !target.contains(e.target)) mi.leaveAlive().catch(() => {});
-        });
-      }
+      wireDocumentTap();
+      this._mi._holdTarget = target;
       on(target, 'pointerenter', this._onAlive);
       on(target, 'focus', this._onAlive);
       wirePointerTracker();
@@ -620,6 +658,7 @@ export function defineMorphIcon(tagName = 'morph-icon') {
     }
 
     _unwireHover() {
+      if (this._mi) heldIcons.delete(this._mi);
       for (const [t, type, fn] of this._wired || []) t.removeEventListener(type, fn);
       this._wired = [];
       this._hoverWired = false;

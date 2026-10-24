@@ -177,6 +177,27 @@ const registry = new Map();
 /** @type {Map<string, Stroke[]>} */
 const strokeCache = new Map();
 
+// The parsed strokes (with their trees) of the most recently used icons stay. About 20 kB per icon, so 300 icons are about 6 MB at most.
+// An older icon is parsed again when it is used again: the result is the same, only the time is spent again.
+const STROKE_CACHE_MAX = 300;
+function evictOldestStrokes() {
+  while (strokeCache.size > STROKE_CACHE_MAX) {
+    const key = strokeCache.keys().next().value;
+    const strokes = strokeCache.get(key);
+    strokeCache.delete(key);
+    const ids = new Set(strokes.map((st) => st.id));
+    for (const k of Array.from(lru.keys())) if (ids.has(Math.floor(k / 4096))) lru.delete(k);
+  }
+}
+
+// Forget the parsed strokes. The resampled forms (LRU, keyed by stroke id) of those strokes go too: nothing could find them again.
+function clearStrokeCache() {
+  const ids = new Set();
+  for (const strokes of strokeCache.values()) for (const st of strokes) ids.add(st.id);
+  strokeCache.clear();
+  if (ids.size) for (const key of Array.from(lru.keys())) if (ids.has(Math.floor(key / 4096))) lru.delete(key);
+}
+
 const DEFAULT_FAMILY = Object.freeze({ id: 'lucide', kind: 'stroke', viewBox: '0 0 24 24', strokeWidth: 2 });
 const DEFAULT_REC = { family: DEFAULT_FAMILY, scale: 1, linecap: 'round', linejoin: 'round' };
 /** icon name -> family record { family, scale, linecap, linejoin }. Plain Lucide names are not in this map. */
@@ -232,7 +253,7 @@ export function registerFamily(spec) {
     registry.set(full, v.nodes);
     nameFamily.set(full, r);
   }
-  strokeCache.clear();
+  clearStrokeCache();
   return family;
 }
 
@@ -245,9 +266,39 @@ export function registerIcons(map) {
     registry.set(name, map[name]);
     nameFamily.delete(name);
   }
-  strokeCache.clear();
+  clearStrokeCache();
 }
 
+/**
+ * Forget icons. Removes each name from the registry and drops every cache keyed by that name (parsed strokes with their
+ * trees, resampled forms). The four built-in `shape:` icons stay (a `shape:` name you registered yourself can be removed). Unknown names are ignored. Plans of other icons do not change.
+ * A family record stays (a later registerFamily with the same id replaces it).
+ * @param {string|string[]|Iterable<string>} names
+ * @returns {number} how many icons were removed
+ */
+export function unregisterIcons(names) {
+  const list = typeof names === 'string' ? [names] : Array.from(names || []);
+  const gone = new Set();
+  for (const name of list) {
+    if (typeof name !== 'string' || BUILTIN_SHAPES.has(name) || !registry.has(name)) continue;
+    registry.delete(name);
+    nameFamily.delete(name);
+    gone.add(name);
+  }
+  if (!gone.size) return 0;
+  const ids = new Set();
+  for (const [key, strokes] of strokeCache) {
+    let end = key.length;
+    for (let k = 0; k < 3; k++) end = key.lastIndexOf('|', end - 1);
+    if (!gone.has(key.slice(0, end))) continue;
+    for (const s of strokes) ids.add(s.id);
+    strokeCache.delete(key);
+  }
+  if (ids.size) for (const key of Array.from(lru.keys())) if (ids.has(Math.floor(key / 4096))) lru.delete(key);
+  return gone.size;
+}
+
+const BUILTIN_SHAPES = new Set(['shape:dot', 'shape:circle', 'shape:square', 'shape:line']);
 // R6-3: simple shapes are icons too, so any icon can morph into or out of them.
 registry.set('shape:dot', [['path', { d: 'M12 12h.01' }]]);
 registry.set('shape:circle', [['circle', { cx: 12, cy: 12, r: 8 }]]);
@@ -1952,11 +2003,16 @@ export function iconToStrokes(nodeOrName, cornerAngle = DEFAULTS.cornerAngle, ch
   if (typeof nodeOrName === 'string') {
     const key = nodeOrName + '|' + cornerAngle + '|' + chainGap + '|' + chainAngle;
     let s = strokeCache.get(key);
-    if (!s) {
+    if (s) {
+      // least recently used last: a hit moves the entry to the end
+      strokeCache.delete(key);
+      strokeCache.set(key, s);
+    } else {
       const rec = famRec(nodeOrName);
       s = chainStrokes(nodeToStrokes(getNode(nodeOrName), cornerAngle, rec.scale, rec.family.strokeWidth * rec.scale), o);
       s.tree = buildTree(s); // R11-2: cached with the parsed icon
       strokeCache.set(key, s);
+      if (strokeCache.size > STROKE_CACHE_MAX) evictOldestStrokes();
     }
     return s;
   }

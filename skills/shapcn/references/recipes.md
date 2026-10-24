@@ -131,7 +131,7 @@ Here the label stays "Show password" and `aria-pressed` carries the state.
 </button>
 ```
 
-The icon plays a short animation on hover and on keyboard focus, then rests. Use it on icon buttons that do not change icon. Styles: `wiggle`, `grow`, `bend`, `bold`, `cascade`, `move`. For a nav bar, `grow` reads well at 24 px.
+The icon plays a short animation on hover and on keyboard focus, then rests. Use it on icon buttons that do not change icon. Styles: `grow`, `bend`, `bold`, `cascade`, `move`. For a nav bar, `grow` reads well at 24 px.
 
 ## Press animation, and a press that changes the icon
 

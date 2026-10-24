@@ -14,7 +14,7 @@ Change `name` and the icon morphs. Change any other attribute and the element up
 | `easing` | `easeInOutCubic` | `linear`, `easeInOutCubic`, `easeOutCubic`, `smooth`, `spring`, `elastic`, `gentle`. |
 | `stagger` | `0` | 0 to 0.99. Spreads the start of the strokes. |
 | `effect` | `implode` to hide, `expand` to show | `implode`, `explode`, `assemble`, `draw`, `erase`, `scale`, `expand`. |
-| `hover` | none | `wiggle` (600 ms), `grow` (400), `bend` (400), `bold` (250, stays while hovered), `cascade` (500), `move` (900, sways with the pointer). Plays on pointer enter and on focus. `alive` is the old name of `wiggle`. |
+| `hover` | none | `grow` (400), `bend` (400), `bold` (250, stays while hovered), `cascade` (500), `move` (900, sways with the pointer). Plays on pointer enter and on focus. `wiggle` (600 ms, old name `alive`) is deprecated: it works until 0.3.0 and logs one warning. |
 | `press` | none | `pop` (300 ms), `squash` (300), `squat-jump` (500), `burst` (500). Plays on pointer down, and on Enter and Space. `anticipate-jump` is the old name of `squat-jump`. |
 | `hover-strength`, `press-strength` | `1.5` | How far it moves. 0.5 to 3. |
 | `hover-duration`, `press-duration` | the style's own | Milliseconds. |

@@ -80,8 +80,8 @@ test('1. a removed icon leaves no document or button listeners; a reconnected ic
     out.newAncestorPlays = svgs() !== rest;
     return out;
   });
-  assert.equal(r.during, 30, 'the page did create 30 listeners (the spy works)');
-  assert.equal(r.after, 0, 'document pointerdown listeners left after removing 30 icons: ' + r.after);
+  assert.equal(r.during, 1, 'one shared document pointerdown listener for 30 icons, not 30: ' + r.during);
+  assert.equal(r.after, 1, 'the shared listener stays, and no listener is left per icon: ' + r.after);
   assert.equal(r.buttons, 0, 'pointerenter listeners left on the removed buttons: ' + r.buttons);
   assert.equal(r.oldAncestorPlays, false, 'the old ancestor still drives the icon');
   assert.equal(r.newAncestorPlays, true, 'the new ancestor does not drive the icon');
@@ -247,5 +247,117 @@ test('6. icons of the Remix family: a press that changes the icon and a move swa
   }, json);
   assert.ok(r.runs >= 20 && r.seen > 200, 'the test ran: ' + JSON.stringify({ runs: r.runs, seen: r.seen }));
   assert.deepEqual(r.bad, [], 'a path of zeros (NaN) was drawn for ' + r.bad.join(', '));
+  assert.deepEqual(errs, []);
+}));
+
+test('an icon that is unregistered while it shows: a name change draws the new icon at rest, later morphs work, nothing throws', { skip }, () => withBrowser(async (browser) => {
+  const { page, errs } = await setup(browser, '<div id="host"><button><morph-icon id="e" name="bell" size="48" hover="grow" press="pop"></morph-icon></button></div><script>' + FRESH + '</script>');
+  const r = await page.evaluate(async () => {
+    const s = window.shapcn;
+    const wait = (ms) => new Promise((x) => setTimeout(x, ms));
+    s.registerIcons({ rmA: [['circle', { cx: 12, cy: 12, r: 6 }]] });
+    const e = document.getElementById('e');
+    e.setAttribute('name', 'rmA');
+    await wait(700);
+    const out = {};
+    s.unregisterIcons('rmA');
+    out.play = [await e.playAlive(), await e.playPress()];
+    e.setAttribute('name', 'star');
+    await wait(100);
+    out.star = e.querySelector('svg').innerHTML === window.fresh('star');
+    await e.morphTo('heart');
+    out.heart = e.querySelector('svg').innerHTML === window.fresh('heart');
+    // the same through the API: set and pressTo and hide from a removed icon
+    s.registerIcons({ rmB: [['circle', { cx: 12, cy: 12, r: 5 }]] });
+    e._mi.set('rmB');
+    s.unregisterIcons('rmB');
+    try { await e.pressTo('bell'); out.pressTo = e.querySelector('svg').innerHTML === window.fresh('bell'); } catch (x) { out.pressTo = 'throws ' + x.message; }
+    return out;
+  });
+  assert.deepEqual(r.play, [false, false], 'playAlive and playPress resolve false');
+  assert.equal(r.star, true, 'the new icon is drawn at rest');
+  assert.equal(r.heart, true, 'a later morph works');
+  assert.equal(r.pressTo, true, 'pressTo from a removed icon draws the new icon');
+  assert.deepEqual(errs, []);
+}));
+
+test('an icon that is unregistered while an animation plays: the Promise settles false in every completion path (press, morph, show, move sway), nothing throws, the element recovers', { skip }, () => withBrowser(async (browser) => {
+  const { page, errs } = await setup(browser, '<div id="host"></div><script>' + FRESH + '</script>');
+  const r = await page.evaluate(async () => {
+    const s = window.shapcn;
+    const wait = (ms) => new Promise((x) => setTimeout(x, ms));
+    const host = document.getElementById('host');
+    const settle = (p) => Promise.race([p.then((v) => 'settled:' + v, (e) => 'rejected:' + e.message), wait(2500).then(() => 'pending')]);
+    const out = {};
+    const mk = (attrs) => { const b = document.createElement('button'); b.innerHTML = '<morph-icon size="48" ' + attrs + '></morph-icon>'; host.appendChild(b); return b.firstChild; };
+    const reg = (n, r) => s.registerIcons({ [n]: [['circle', { cx: 12, cy: 12, r }]] });
+    // 1. press: the icon at the end of the press is gone
+    reg('gone1', 6);
+    let e = mk('name="gone1" press="squash" press-duration="400"');
+    await wait(100);
+    let p = e.playPress(); await wait(120); s.unregisterIcons('gone1'); out.press = await settle(p);
+    // 2. morph: the destination of a morph is gone
+    reg('gone2', 5);
+    e = mk('name="bell" duration="500"');
+    await wait(100);
+    p = e.morphTo('gone2'); await wait(150); s.unregisterIcons('gone2'); out.morph = await settle(p);
+    // 3. show: an empty icon shows a name that is then removed
+    reg('gone3', 4);
+    e = mk('name="bell" duration="500"');
+    await wait(100);
+    await e.hide(); p = e.show('gone3'); await wait(150); s.unregisterIcons('gone3'); out.show = await settle(p);
+    // 4. move sway
+    reg('gone4', 7);
+    const b = document.createElement('button'); b.innerHTML = '<morph-icon name="gone4" size="48" hover="move"></morph-icon>'; host.appendChild(b);
+    e = b.firstChild; await wait(100);
+    p = e.playAlive(); await wait(100); s.unregisterIcons('gone4'); e.leaveAlive(); out.sway = await settle(p);
+    // after each: the element is usable again (a name change draws the new icon)
+    const els = [...host.querySelectorAll('morph-icon')];
+    out.recover = [];
+    for (const el of els) { el.setAttribute('name', 'star'); await wait(900); out.recover.push(el.querySelector('svg').innerHTML === window.fresh('star')); }
+    return out;
+  });
+  for (const k of ['press', 'morph', 'show', 'sway']) assert.equal(r[k], 'settled:false', k + ' Promise: ' + r[k]);
+  assert.deepEqual(r.recover, [true, true, true, true], 'every element recovers with a new name');
+  assert.deepEqual(errs, []);
+}));
+
+test('listeners: 1,000 icons add one document pointerdown listener, and a held bold hover still lets go on a tap elsewhere (touch)', { skip }, () => withBrowser(async (browser) => {
+  const { page, errs } = await setup(browser, '<div id="host"></div><script>' + FRESH + '</script>');
+  const r = await page.evaluate(async () => {
+    const wait = (ms) => new Promise((x) => setTimeout(x, ms));
+    const host = document.getElementById('host');
+    const before = window.live('pointerdown', 'document');
+    for (let i = 0; i < 1000; i++) { const b = document.createElement('button'); b.innerHTML = '<morph-icon name="bell" size="24" hover="bold"></morph-icon>'; host.appendChild(b); }
+    await wait(200);
+    const out = { docListeners: window.live('pointerdown', 'document') - before, buttonEnter: window.live('pointerenter', 'BUTTON') };
+    // touch: a tap on icon 0 holds bold; a tap on icon 1 (another target) lets go of icon 0; a tap on icon 0 itself does not
+    const [b0, b1] = host.children;
+    const m0 = b0.firstChild;
+    const rest = window.fresh('bell');
+    const touch = (el) => el.dispatchEvent(new PointerEvent('pointerdown', { pointerType: 'touch', bubbles: true }));
+    touch(b0); await wait(450);
+    out.held = !!m0._mi._holdPlan;
+    touch(m0); await wait(100);
+    out.stillHeldAfterOwnTap = !!m0._mi._holdPlan || !!m0._mi._run;
+    await wait(600);
+    touch(b0); await wait(450); // re-hold if the second tap let go
+    if (!m0._mi._holdPlan) { touch(b0); await wait(450); }
+    out.heldAgain = !!m0._mi._holdPlan;
+    touch(b1); await wait(700);
+    out.releasedByOtherTap = !m0._mi._holdPlan && !m0._mi._run;
+    out.restAfter = m0.querySelector('svg').innerHTML === rest;
+    host.innerHTML = '';
+    await wait(100);
+    out.afterRemove = window.live('pointerdown', 'document') - before;
+    return out;
+  });
+  assert.equal(r.docListeners, 1, 'document pointerdown listeners for 1,000 icons: ' + r.docListeners);
+  assert.equal(r.buttonEnter, 1000, 'each button keeps its own pointerenter');
+  assert.equal(r.held, true, 'a touch tap holds bold');
+  assert.equal(r.heldAgain, true);
+  assert.equal(r.releasedByOtherTap, true, 'a tap on another target lets go');
+  assert.equal(r.restAfter, true, 'the icon is back at rest');
+  assert.equal(r.afterRemove, 1, 'the one shared listener stays; nothing per icon');
   assert.deepEqual(errs, []);
 }));

@@ -38,14 +38,14 @@ document.querySelector('morph-icon').setAttribute('name', 'mic-off');
 One file. It loads the Lucide icons and defines `<morph-icon>` for you.
 
 ```html
-<script src="https://unpkg.com/shape-aware-morph@0.2.1"></script>
+<script src="https://unpkg.com/shape-aware-morph@0.2.2"></script>
 <morph-icon name="mic"></morph-icon>
 <script>
   document.querySelector('morph-icon').setAttribute('name', 'mic-off');
 </script>
 ```
 
-jsDelivr works too: `https://cdn.jsdelivr.net/npm/shape-aware-morph@0.2.1`. The script also sets `window.shapcn` with the API.
+jsDelivr works too: `https://cdn.jsdelivr.net/npm/shape-aware-morph@0.2.2`. The file is minified (about 170 kB gzipped, with all Lucide icons). The script also sets `window.shapcn` with the API.
 
 ### React
 
@@ -124,6 +124,23 @@ registerSVGs({
 - An invalid path, a `kind` other than `'stroke'` or `'fill'`, or a non-object argument throws an error.
 - It returns the list of registered names.
 
+### Forget icons
+
+A long-lived page (a browser extension, a single-page app) can register icons without a limit. Call `unregisterIcons` to remove them again.
+
+```js
+import { registerSVGs, unregisterIcons } from 'shape-aware-morph';
+
+const names = registerSVGs(batch);   // ['star', 'heart', ...]
+// later:
+unregisterIcons(names);              // returns the number of icons removed
+```
+
+- It takes one name or a list of names. Use the full name (`tabler-outline:bell`, `svg:star`).
+- It removes the icons from the registry and drops every cache that uses their names. Plans of other icons stay the same.
+- The four `shape:` icons stay. A name that is not registered is ignored.
+- Do not remove an icon that an element still shows or morphs to.
+
 ## Attributes
 
 Change `name` and the icon morphs. Change any other attribute and the element updates.
@@ -138,7 +155,7 @@ Change `name` and the icon morphs. Change any other attribute and the element up
 | `easing` | `easeInOutCubic` | One of `linear`, `easeInOutCubic`, `easeOutCubic`, `smooth`, `spring`, `elastic`, `gentle`. |
 | `stagger` | `0` | Spreads the start of the strokes over part of the time. A number from 0 to 0.99. |
 | `effect` | `implode` to hide, `expand` to show | The effect for hide and show: `implode`, `explode`, `assemble`, `draw`, `erase`, `scale`, `expand`. |
-| `hover` | none | A hover style: `wiggle`, `grow`, `bend`, `bold`, `cascade` or `move`. Plays on pointer enter and on keyboard focus. `alive` is the old name of `wiggle`. See "Hover and press". |
+| `hover` | none | A hover style: `grow`, `bend`, `bold`, `cascade` or `move`. Plays on pointer enter and on keyboard focus. See "Hover and press". |
 | `press` | none | A press style: `pop`, `squash`, `squat-jump` or `burst`. Plays on pointer down (a mouse press or a tap), and on Enter and Space. The button's `click` still fires. |
 | `hover-strength`, `press-strength` | `1.5` | How far the motion goes. A number from 0.5 to 3. |
 | `hover-duration`, `press-duration` | the style's own | Milliseconds. |
@@ -154,7 +171,7 @@ Icons can react to the pointer. Set `hover` for the pointer and `press` for the 
 
 | Attribute | Values | Default time |
 | --- | --- | --- |
-| `hover` | `wiggle` (the motion the rig picks for the icon), `grow`, `bend`, `bold` (stays bold while hovered), `cascade`, `move` (sways with the pointer) | 600, 400, 400, 250, 500, 900 ms |
+| `hover` | `grow`, `bend`, `bold` (stays bold while hovered), `cascade`, `move` (sways with the pointer) | 400, 400, 250, 500, 900 ms |
 | `press` | `pop`, `squash`, `squat-jump`, `burst` | 300, 300, 500, 500 ms |
 | `hover-strength`, `press-strength` | 0.5 to 3 | 1.5 |
 | `hover-duration`, `press-duration` | milliseconds | the style's own |
@@ -173,7 +190,7 @@ el.pressTo('circle-check');        // or: el.setAttribute('name', 'circle-check'
 
 Without the element: `planAlive(name, { style: 'grow' })`, `planPress(name, { style: 'burst', to: 'check' })` and `createSway(name)` (the live sway of `move`). Each plan has `frame(t)` like `planMorph`. At `t = 0` and `t = 1` the plan draws the rest icon. No point goes more than 3 units outside the 24 box, the stroke width never changes, and nothing fades.
 
-`alive` is the old name of `wiggle`. Its default strength is now 1.5 (in 0.1.0 it was 1). Set `hover-strength="1"` for the old size.
+**Deprecated:** `hover="wiggle"` (old name `alive`) still works and looks as in 0.2.1, but it will be removed in 0.3.0. It logs one console warning per page. `planAlive(name)` and `playAlive()` without a style also play wiggle in 0.2.2 and warn; their default becomes `grow` in 0.3.0. Use `grow`, `bend`, `bold`, `cascade` or `move`.
 
 On a touch screen a tap plays the hover style once. With `prefers-reduced-motion: reduce`, hover and press do nothing, and a press that changes the icon changes it at once.
 
@@ -189,7 +206,7 @@ const entries = plan.frame(0.5);   // drawing entries at the middle of the morph
 
 `frame(t)` takes a time from 0 to 1. The plan does not touch the DOM. The package also exports internal helpers. Only the functions listed here are stable.
 
-Other exports: `planAlive`, `planPress`, `createSway`, `retargetPlan`, `HOVER_STYLES`, `PRESS_STYLES`, `alive`, `planEffect`, `MorphIcon`, `getIconNames`, `iconToSVG`, `registerIcons`, `registerFamilyFile`, `registerFamilyIcons`, `registerSVGs`, `DEFAULTS`, `easings`.
+Other exports: `planAlive`, `planPress`, `createSway`, `retargetPlan`, `HOVER_STYLES`, `PRESS_STYLES`, `alive`, `planEffect`, `MorphIcon`, `getIconNames`, `iconToSVG`, `registerIcons`, `registerFamilyFile`, `registerFamilyIcons`, `registerSVGs`, `unregisterIcons`, `DEFAULTS`, `easings`.
 
 ## Reduced motion
 

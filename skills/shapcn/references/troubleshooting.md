@@ -29,7 +29,7 @@ The package is ES modules only. Use `import`. In Node, `require('shape-aware-mor
 
 ## `hover` or `press` does nothing
 - Reduced motion is on, or the icon is empty/hidden, or another animation is running. This is by design.
-- The attribute value must be one of `wiggle`, `grow`, `bend`, `bold`, `cascade`, `move` (hover) or `pop`, `squash`, `squat-jump`, `burst` (press). `alive` still works and means `wiggle`.
+- The attribute value must be one of `grow`, `bend`, `bold`, `cascade`, `move` (hover) or `pop`, `squash`, `squat-jump`, `burst` (press). `wiggle` and `alive` still work until 0.3.0 (deprecated, one console warning). Do not use them.
 - The script is older than 0.2.0. Older versions know only `hover="alive"`.
 
 ## Wrong color or size

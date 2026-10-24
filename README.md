@@ -34,7 +34,7 @@ Add `hover` and the icon reacts to the pointer and to keyboard focus, then rests
 
 | Attribute | Values |
 | --- | --- |
-| `hover` | `wiggle`, `grow`, `bend`, `bold` (stays while hovered), `cascade`, `move` (sways with the pointer). `alive` is the old name of `wiggle`. |
+| `hover` | `grow`, `bend`, `bold` (stays while hovered), `cascade`, `move` (sways with the pointer). `wiggle` (old name `alive`) is deprecated: it works until 0.3.0 and logs one warning. |
 | `press` | `pop`, `squash`, `squat-jump`, `burst` |
 | `hover-strength`, `press-strength` | 0.5 to 3. Default 1.5. |
 | `hover-duration`, `press-duration` | Milliseconds. Each style has its own default. |
@@ -56,7 +56,7 @@ await registerLucide();   // loads the Lucide icons
 defineMorphIcon();        // defines <morph-icon>
 ```
 
-There are modules for 12 icon sets (`shape-aware-morph/lucide`, `shape-aware-morph/tabler-outline`, ...). See `package/README.md`. As one file from a CDN: `https://unpkg.com/shape-aware-morph` or `https://cdn.jsdelivr.net/npm/shape-aware-morph@0.2.1/dist/morph-icon.js`.
+There are modules for 12 icon sets (`shape-aware-morph/lucide`, `shape-aware-morph/tabler-outline`, ...). See `package/README.md`. As one file from a CDN: `https://unpkg.com/shape-aware-morph` or `https://cdn.jsdelivr.net/npm/shape-aware-morph@0.2.2/dist/morph-icon.js`.
 
 ### Build from source
 

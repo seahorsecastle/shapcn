@@ -175,7 +175,7 @@ for (const [kind, styles] of [['hover', HOVER], ['press', PRESS]]) {
 test('defaults: wiggle is alive at 600 ms, grow 400, bend 400, bold 250, cascade 500, move 900; press 300/300/500/500', () => {
   assert.deepEqual(['wiggle', 'alive', 'grow', 'bend', 'bold', 'cascade', 'move'].map(m.hoverMs), [600, 600, 400, 400, 250, 500, 900]);
   assert.deepEqual(['pop', 'squash', 'squat-jump', 'anticipate-jump', 'burst'].map(m.pressMs), [300, 300, 500, 500, 500]);
-  assert.deepEqual([...m.HOVER_STYLES], ['wiggle', 'grow', 'bend', 'bold', 'cascade', 'move']);
+  assert.deepEqual([...m.HOVER_STYLES], ['grow', 'bend', 'bold', 'cascade', 'move']); // 0.2.2: wiggle is deprecated and not listed
   assert.deepEqual([...m.PRESS_STYLES], ['pop', 'squash', 'squat-jump', 'burst']);
 });
 
@@ -442,7 +442,7 @@ test('a press that joins a running press morphs from the stroke geometry of that
     for (const style of PRESS) {
       const run = m.planPress(a, { style, ...geo });
       const joined = m.planPress(a, { style, to: b, fromT: 0.3, joinPlan: run }); // no knobs in the joining call
-      const got = joined.frame(0).length;
+      const got = joined.frame(0).filter((e) => e.key < 100000).length; // the morph entries (the bridge lines of the old icon are separate entries with keys from 100000)
       if (got !== want) fails.push(style + ' ' + a + '>' + b + ': ' + got + ' entries, the running press geometry gives ' + want + ' (default knobs give ' + dflt + ')');
       if (hd(polysOf(joined.frame(1)), restPolys(b)) > 0.05) fails.push(style + ' ' + a + '>' + b + ' does not end on the new icon');
     }

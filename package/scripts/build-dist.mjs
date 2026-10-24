@@ -23,7 +23,7 @@ const indexSrc = read('index.js');
 const glueStart = indexSrc.indexOf('export function registerFamilyFile');
 if (glueStart < 0) fail('index.js has no registerFamilyFile');
 const glue = strip(indexSrc.slice(glueStart)).replace(/\bcore\./g, '');
-const names = ['DEFAULTS', 'easings', 'registerIcons', 'registerFamily', 'registerFamilyFile', 'getIconInfo', 'getFamily', 'getIconNames', 'iconToSVG', 'planMorph', 'planAlive', 'planPress', 'createSway', 'retargetPlan', 'HOVER_STYLES', 'PRESS_STYLES', 'MorphIcon', 'defineMorphIcon'];
+const names = ['DEFAULTS', 'easings', 'registerIcons', 'unregisterIcons', 'registerFamily', 'registerFamilyFile', 'getIconInfo', 'getFamily', 'getIconNames', 'iconToSVG', 'planMorph', 'planAlive', 'planPress', 'createSway', 'retargetPlan', 'HOVER_STYLES', 'PRESS_STYLES', 'MorphIcon', 'defineMorphIcon'];
 const nodes = JSON.stringify(JSON.parse(read('data/lucide-nodes.json')));
 const script =
   '/* shapcn: morph any icon into any other. MIT license. Lucide icons: ISC license. https://shapcn.com */\n' +
@@ -32,5 +32,9 @@ const script =
   'registerIcons(' + nodes + ');\ndefineMorphIcon();\n' +
   'window.shapcn = {\n' + names.map((n) => '  ' + n + ': ' + n).join(',\n') + '\n};\n})();\n';
 mkdirSync(join(PKG, 'dist'), { recursive: true });
-writeFileSync(join(PKG, 'dist', 'morph-icon.js'), script);
-console.log('dist/morph-icon.js ' + script.length + ' bytes');
+// dist/morph-icon.js is minified (the file the script tag and the CDNs load); dist/morph-icon.dev.js is the readable build.
+const { transformSync } = await import('esbuild');
+const min = transformSync(script, { minify: true, target: 'es2020', legalComments: 'none' }).code;
+writeFileSync(join(PKG, 'dist', 'morph-icon.dev.js'), script);
+writeFileSync(join(PKG, 'dist', 'morph-icon.js'), '/* shapcn: morph any icon into any other. MIT license. Lucide icons: ISC license. https://shapcn.com */\n' + min);
+console.log('dist/morph-icon.js ' + min.length + ' bytes (minified), dist/morph-icon.dev.js ' + script.length + ' bytes');
