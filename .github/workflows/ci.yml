@@ -20,5 +20,8 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - run: npm install
+      - run: npx playwright install --with-deps chrome
       - run: npm run build
       - run: npm test
+        env:
+          SHAPCN_REQUIRE_ALL: '1' # the browser and TypeScript tests must run in CI, not skip

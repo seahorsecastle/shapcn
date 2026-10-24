@@ -209,6 +209,11 @@ function alNum(x) {
   return String(r);
 }
 
+// The numbers of a path string. Morph frames of some icon sets write `M x y L x y` (a letter between the numbers), others `M x y x y`.
+function alNums(d) {
+  return (d.match(/-?\d*\.?\d+(?:e-?\d+)?/gi) || []).map(Number);
+}
+
 // The `d` string of one polyline: `M x0 y0 x1 y1 ...` (the core format, 2 decimals).
 function alD(P) {
   const parts = new Array(P.length);
@@ -569,6 +574,30 @@ function alDensify(P) {
     out.push(P[2 * k], P[2 * k + 1]);
   }
   return Float64Array.from(out);
+}
+
+// The same densify for a loop with a visibility mask (one entry per segment): each piece of a segment keeps its entry.
+function alDensifyVis(P, vis) {
+  const out = [];
+  const outVis = [];
+  const n = P.length / 2;
+  for (let k = 0; k < n; k++) {
+    if (k > 0) {
+      const x0 = P[2 * k - 2];
+      const y0 = P[2 * k - 1];
+      const x1 = P[2 * k];
+      const y1 = P[2 * k + 1];
+      const m = Math.ceil(Math.hypot(x1 - x0, y1 - y0) / STYLE_STEP);
+      const v = vis ? vis[k - 1] : 1;
+      for (let j = 1; j < m; j++) {
+        out.push(x0 + ((x1 - x0) * j) / m, y0 + ((y1 - y0) * j) / m);
+        outVis.push(v);
+      }
+      outVis.push(v);
+    }
+    out.push(P[2 * k], P[2 * k + 1]);
+  }
+  return { points: Float64Array.from(out), vis: Uint8Array.from(outVis) };
 }
 
 // The first fraction f of a polyline (by length). f >= 1 returns the polyline itself; nothing left returns an empty array.
@@ -1286,7 +1315,9 @@ function planPressTo(name, to, opts) {
   const key = 'p:' + style;
   const strength = Number.isFinite(opts.strength) && opts.strength > 0 ? opts.strength : STRENGTH_DEFAULT;
   const fromT = Number.isFinite(opts.fromT) ? alClamp(opts.fromT) : 0;
-  const morph = planMorph(name, to, { easing: 'spring', ...opts, style: undefined, to: undefined, strength: undefined, fromT: undefined, joinPlan: undefined });
+  // A joined plan morphs from the same stroke geometry as the press that runs (its chain knobs), not from those of this call.
+  const joinGeo = opts.joinPlan && opts.joinPlan.geo ? opts.joinPlan.geo : {};
+  const morph = planMorph(name, to, { easing: 'spring', ...opts, ...joinGeo, style: undefined, to: undefined, strength: undefined, fromT: undefined, joinPlan: undefined });
   const ctxC = alPressCtx([name, to]);
   const win = PRESS_TO_WINDOW[style] || [0.15, 0.7];
   // A press that joins one that runs starts from the context and the gain of that press (its pivot and size), so its first
@@ -1297,7 +1328,7 @@ function planPressTo(name, to, opts) {
     try {
       // The running press if we know it; else rebuilt from the settings of this call (the same geometry knobs).
       const geo = {};
-      for (const k of ['cornerAngle', 'chainGap', 'chainAngle']) if (opts[k] !== undefined) geo[k] = opts[k];
+      for (const k of ['cornerAngle', 'chainGap', 'chainAngle']) if ((joinGeo[k] !== undefined ? joinGeo[k] : opts[k]) !== undefined) geo[k] = joinGeo[k] !== undefined ? joinGeo[k] : opts[k];
       const info = joined || planAlive(name, { ...geo, click: true, style, strength: opts.strength }).pressInfo;
       if (info) {
         ctx0 = info.ctx;
@@ -1325,15 +1356,17 @@ function planPressTo(name, to, opts) {
   const pressT = (u) => fromT + (1 - fromT) * u;
   const morphT = (t, u) => (late ? alClamp(u) : alClamp((t - ws) / (we - ws)));
   const dOf = (P) => alD(P);
+  // One preparation for frame() and snapshot(): a warp that is not affine bends a long straight piece, so it is densified first.
+  const prepPiece = (P) => (AFFINE_STYLES.has(key) ? P : alDensify(P));
   // A morph path can hold several pieces (M x y x y ... M x y ...): each piece is warped alone.
   const warpD = (d, t, g, c) =>
     d
       .split('M')
       .filter((seg) => seg.trim())
       .map((seg) => {
-        const P = Float64Array.from(seg.trim().split(/\s+/).map(Number));
+        const P = Float64Array.from(alNums(seg));
         // a warp that is not affine bends a long straight piece: densify it, as the standalone press does
-        return dOf(alWarp(key, c, AFFINE_STYLES.has(key) ? P : alDensify(P), t, g));
+        return dOf(alWarp(key, c, prepPiece(P), t, g));
       })
       .join('');
   const frameAt = (u, g) => {
@@ -1350,9 +1383,19 @@ function planPressTo(name, to, opts) {
   };
   // R15-5: the largest gain that keeps the combined frames inside the bound.
   const limit = ALIVE_BOUND - RIG_FIT_MARGIN; // the morph and the press peak at different times, so keep room between samples
-  const worst = (g) => {
+  const outside = (u, g) => {
     let w = 0;
-    for (let q = 1; q < 100; q++) for (const e of frameAt(q / 100, g)) for (const v of e.d.replace(/M/g, ' ').trim().split(/\s+/)) w = Math.max(w, -v, v - 24);
+    for (const e of frameAt(u, g)) for (const v of alNums(e.d)) w = Math.max(w, -v, v - 24);
+    return w;
+  };
+  // 99 samples, then the three highest are searched more finely: the morph and the press can peak together in a very short time.
+  const worst = (g) => {
+    const vals = [];
+    for (let q = 1; q < 100; q++) vals.push([outside(q / 100, g), q]);
+    let w = 0;
+    for (const [v] of vals) w = Math.max(w, v);
+    const top = vals.slice().sort((x, y) => y[0] - x[0]).filter((x, i, arr) => arr.slice(0, i).every((y) => Math.abs(y[1] - x[1]) > 1)).slice(0, 3);
+    for (const [, q] of top) for (let k = -9; k <= 9; k++) w = Math.max(w, outside(Math.min(0.9999, Math.max(0.0001, (q + k * 0.1) / 100)), g));
     return w;
   };
   let gain = strength;
@@ -1389,7 +1432,12 @@ function planPressTo(name, to, opts) {
     const snap = morph.snapshot(morphT(t, u));
     const c = ctxAt(u);
     const gg = gainAt(u, gain);
-    const loops = snap.loops.map((L) => ({ ...L, points: u >= 1 ? L.points : alWarp(key, c, L.points, t, gg) }));
+    const loops = snap.loops.map((L) => {
+      if (u >= 1) return L;
+      if (AFFINE_STYLES.has(key)) return { ...L, points: alWarp(key, c, L.points, t, gg) };
+      const D = alDensifyVis(L.points, L.vis);
+      return { ...L, points: alWarp(key, c, D.points, t, gg), vis: D.vis };
+    });
     return { ...snap, loops };
   };
   return plan;
@@ -1637,6 +1685,7 @@ export function planAlive(name, opts = {}) {
   }
   const plan = alPlanObject({ slots, n: S.length, strokeWidth: alStrokeWidth(name), kind: kind.kind, X, Wf });
   plan.live = liveInfo;
+  plan.geo = { cornerAngle: o.cornerAngle, chainGap: o.chainGap, chainAngle: o.chainAngle }; // the geometry knobs the plan was built with: a press that joins it uses them
   plan.pressInfo = pressInfo && style ? { ...pressInfo, style: style.replace(/^p:/, '') } : pressInfo; // the warp context, the fitted gain and the style of a press: a press that joins this one starts from them
   if (style && denseOf) {
     // Interruptible: `retargetPlan` can start from any frame of this plan.

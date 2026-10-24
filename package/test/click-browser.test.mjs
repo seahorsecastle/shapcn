@@ -17,7 +17,7 @@ try {
   chromium = null;
 }
 const dist = PKG + '/dist/morph-icon.js';
-const skip = !chromium ? 'Playwright is not installed (see the comment at the top of this file)' : !existsSync(dist) ? 'run npm run build first' : false;
+const skip = process.env.SHAPCN_REQUIRE_ALL ? false : !chromium ? 'Playwright is not installed (see the comment at the top of this file)' : !existsSync(dist) ? 'run npm run build first' : false;
 
 test('a click fires when the pointer goes down on a stroke, for every press style and every hover style', { skip }, async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });

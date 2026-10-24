@@ -13,7 +13,7 @@ try {
   chromium = null;
 }
 const dist = PKG + '/dist/morph-icon.js';
-const skip = !chromium ? 'Playwright is not installed (see click-browser.test.mjs)' : !existsSync(dist) ? 'run npm run build first' : false;
+const skip = process.env.SHAPCN_REQUIRE_ALL ? false : !chromium ? 'Playwright is not installed (see click-browser.test.mjs)' : !existsSync(dist) ? 'run npm run build first' : false;
 // The page counts every addEventListener on document and on buttons before the engine loads, to see leaks.
 const SPY = `<script>
 window.__listeners = new Map();
@@ -97,7 +97,7 @@ test('2. a live sway (hover="move") that is interrupted or destroyed settles its
     for (const how of ['playPress', 'morphTo', 'remove', 'MorphIcon.destroy']) {
       let p, el = m, mi = null;
       if (how === 'remove') { el = m.cloneNode(false); el.id = 'tmp'; el.setAttribute('name', 'bell'); m.parentNode.appendChild(el); await new Promise((r) => setTimeout(r, 50)); }
-      if (how === 'MorphIcon.destroy') { mi = new window.shapcn.MorphIcon(document.getElementById('host'), { name: 'bell', hover: 'move' }); p = mi.playAlive({ velocity: { vx: 0.6, vy: 0 } }); }
+      if (how === 'MorphIcon.destroy') { mi = new window.shapcn.MorphIcon(document.getElementById('host'), { hover: 'move' }); mi.set('bell'); p = mi.playAlive({ velocity: { vx: 0.6, vy: 0 } }); }
       else p = el.playAlive({ velocity: { vx: 0.6, vy: 0 } });
       await new Promise((r) => setTimeout(r, 80));
       out[how + ' active'] = how === 'MorphIcon.destroy' ? !!mi._live : !!el._mi._live; // the sway runs before it is interrupted
@@ -207,8 +207,42 @@ test('5. a second press during a combined press does not snap from the wrong pic
   assert.equal(r.active2, true, 'the second combined press runs before it is interrupted');
   assert.ok(r.pressToJump < 0.1, 'pressTo during a combined press jumped by ' + r.pressToJump.toFixed(2));
   assert.equal(r.p2, false, 'the interrupted pressTo settles false');
-  assert.ok(r.p3 === true || r.p3 === false, 'the last pressTo settles: ' + r.p3);
+  assert.equal(r.p3, true, 'the last pressTo settles true: ' + r.p3);
   assert.equal(r.end, 'check');
   assert.equal(r.final, true, 'the rendered picture at the end is the check icon');
+  assert.deepEqual(errs, []);
+}));
+
+test('6. icons of the Remix family: a press that changes the icon and a move sway never draw a NaN path (about 1 run in 3 failed before)', { skip }, () => withBrowser(async (browser) => {
+  const { readFileSync } = await import('node:fs');
+  const json = readFileSync(PKG + '/data/families/remix-line-s.json', 'utf8');
+  const { page, errs } = await setup(browser, '<button id="b"><morph-icon id="m" size="64" hover="move" press="squat-jump" duration="500"></morph-icon></button>');
+  page.on('console', (m) => { if (m.type() === 'error') errs.push(m.text().slice(0, 120)); });
+  const r = await page.evaluate(async (json) => {
+    window.shapcn.registerFamilyFile(json);
+    const m = document.getElementById('m'), b = document.getElementById('b');
+    const names = window.shapcn.getIconNames().filter((n) => n.indexOf('remix-line-s:') === 0);
+    const want = ['shopping-cart', 'refresh', 'flashlight', 'shield', 'moon', 'star-off', 'attachment', '24-hours'];
+    const from = want.map((w) => names.find((n) => n === 'remix-line-s:' + w) || names.find((n) => n.indexOf('remix-line-s:' + w) === 0)).filter(Boolean);
+    const bad = [];
+    let seen = 0, runs = 0;
+    const zeroRun = () => [...m.querySelectorAll('path')].some((p) => /(\s0){10,}/.test(' ' + p.getAttribute('d').replace(/[A-Za-z]/g, ' ')));
+    for (let rep = 0; rep < 3; rep++) {
+      for (let i = 0; i < from.length; i++) {
+        const a = from[i], c = from[(i + 3) % from.length];
+        m.setAttribute('name', a); await new Promise((r) => setTimeout(r, 650));
+        b.dispatchEvent(new PointerEvent('pointerenter', { pointerType: 'mouse' })); // the move sway
+        const p = m.pressTo(c);
+        const t0 = performance.now();
+        while (performance.now() - t0 < 700) { seen++; if (zeroRun()) { bad.push(a + '>' + c); break; } await new Promise((r) => setTimeout(r, 25)); }
+        runs++;
+        b.dispatchEvent(new PointerEvent('pointerleave', { pointerType: 'mouse' }));
+        await p;
+      }
+    }
+    return { bad, seen, runs };
+  }, json);
+  assert.ok(r.runs >= 20 && r.seen > 200, 'the test ran: ' + JSON.stringify({ runs: r.runs, seen: r.seen }));
+  assert.deepEqual(r.bad, [], 'a path of zeros (NaN) was drawn for ' + r.bad.join(', '));
   assert.deepEqual(errs, []);
 }));

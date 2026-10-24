@@ -57,7 +57,7 @@ The build writes `dist/morph-icon.js`.
 
 ### Sizes
 
-78 KB engine, gzipped. 236 KB with all 1,858 Lucide icons.
+79 KB engine, gzipped. 237 KB with all 1,858 Lucide icons.
 
 ## Use with AI coding agents
 

@@ -432,6 +432,75 @@ test('a press that joins a running press continues it, whatever the settings of 
   report('continuity with settings of the replacement call', fails);
 });
 
+test('a press that joins a running press morphs from the stroke geometry of that press (its chain knobs), not from the knobs of the joining call', () => {
+  const fails = [];
+  const geo = { chainGap: 12, chainAngle: 30 };
+  for (const [a, b] of [['a-arrow-down', 'check'], ['alarm-clock', 'check'], ['a-arrow-up', 'heart']]) {
+    const want = m.planMorph(a, b, { ...geo }).frame(0).length; // the entries of the source icon with the knobs of the running press
+    const dflt = m.planMorph(a, b).frame(0).length;
+    if (want === dflt) { fails.push(a + ': the knobs do not change the plan (bad test icon)'); continue; }
+    for (const style of PRESS) {
+      const run = m.planPress(a, { style, ...geo });
+      const joined = m.planPress(a, { style, to: b, fromT: 0.3, joinPlan: run }); // no knobs in the joining call
+      const got = joined.frame(0).length;
+      if (got !== want) fails.push(style + ' ' + a + '>' + b + ': ' + got + ' entries, the running press geometry gives ' + want + ' (default knobs give ' + dflt + ')');
+      if (hd(polysOf(joined.frame(1)), restPolys(b)) > 0.05) fails.push(style + ' ' + a + '>' + b + ' does not end on the new icon');
+    }
+  }
+  report('join geometry', fails);
+});
+
+test('burst: snapshot() and frame() are the same picture, and a morph that starts from the snapshot starts on the displayed picture', () => {
+  const fails = [];
+  const loopsPolys = (snap) => snap.loops.map((L) => Array.from(L.points)).filter((P) => P.length >= 4);
+  for (const style of ['burst', 'squat-jump', 'squash', 'pop']) {
+    for (const [a, b] of [['heart', 'check'], ['sun', 'moon'], ['minus', 'arrow-down'], ['equal', 'x'], ['plus', 'check']]) {
+      for (const u of [0.05, 0.25, 0.4, 0.7]) {
+        const plan = m.planPress(a, { style, to: b });
+        const shown = polysOf(plan.frame(u));
+        const snap = plan.snapshot(u);
+        const d = hd(loopsPolys(snap), shown);
+        if (d > 0.05) fails.push(style + ' ' + a + '>' + b + ' u=' + u + ' snapshot vs frame ' + d.toFixed(2));
+        for (const L of snap.loops) if (L.vis && L.vis.length !== L.points.length / 2 - 1) fails.push(style + ' ' + a + ' vis length');
+        // an interruption: a new morph from this snapshot starts on the displayed picture
+        const next = m.planMorph(snap, 'star', {});
+        const d2 = hd(polysOf(next.frame(0)), shown);
+        if (d2 > 0.05) fails.push(style + ' ' + a + '>' + b + ' u=' + u + ' morph from snapshot starts ' + d2.toFixed(2) + ' off');
+      }
+    }
+  }
+  report('snapshot', fails);
+});
+
+test('press with a new icon works on icons of the other families (their morph paths are written `M x y L x y`): no NaN, bound kept', async () => {
+  const { readFileSync } = await import('node:fs');
+  const fams = ['remix-line-s', 'phosphor-regular-s', 'tabler-outline', 'hugeicons'];
+  const fails = [];
+  for (const f of fams) {
+    const json = JSON.parse(readFileSync(new URL('../data/families/' + f + '.json', import.meta.url), 'utf8'));
+    m.registerFamilyFile(json);
+    const all = m.getIconNames().filter((n) => n.startsWith(f + ':'));
+    const pick = all.filter((_, i) => i % Math.max(1, Math.floor(all.length / 18)) === 0).slice(0, 18);
+    for (const a of pick) {
+      for (const b of [pick[(pick.indexOf(a) + 5) % pick.length], 'remix-line-s:moon'].filter((x) => all.includes(x) || x.startsWith(f))) {
+        if (a === b || !m.getIconNames().includes(b)) continue;
+        for (const style of PRESS) {
+          const plan = m.planPress(a, { style, to: b });
+          let worst = 0;
+          for (let q = 0; q <= 40; q++) {
+            for (const e of plan.frame(q / 40)) {
+              if (/(\s0){10,}/.test(' ' + e.d.replace(/[A-Za-z]/g, ' '))) { fails.push(style + ' ' + a + '>' + b + ' q=' + q + ' a run of zeros (NaN)'); break; }
+              for (const v of e.d.match(/-?\d*\.?\d+/g).map(Number)) worst = Math.max(worst, -v, v - 24);
+            }
+          }
+          if (worst > BOUND + 1e-9) fails.push(style + ' ' + a + '>' + b + ' bound ' + worst.toFixed(2));
+        }
+      }
+    }
+  }
+  report('family icons', fails.slice(0, 20));
+});
+
 test('index.d.ts declares the `to` option of planPress as a string (declaration text; the compile test below checks it with tsc)', async () => {
   const { readFileSync } = await import('node:fs');
   const dts = readFileSync(new URL('../index.d.ts', import.meta.url), 'utf8');
@@ -453,7 +522,7 @@ const { existsSync: tscExists } = await import('node:fs');
 let TSC = process.env.TSC_PATH || null;
 if (!TSC) { try { TSC = tscRequire((process.env.PLAYWRIGHT_DIR || PKG) + '/').resolve('typescript/bin/tsc'); } catch (e) { TSC = null; } }
 // skips when typescript is not found: set TSC_PATH=/path/to/typescript/bin/tsc, or npm i --no-save typescript
-test('TypeScript (tsc --strict): `to` takes a string and rejects an icon node', { skip: !TSC || !tscExists(TSC) ? 'typescript not found (TSC_PATH, or npm i --no-save typescript)' : false }, async () => {
+test('TypeScript (tsc --strict): `to` takes a string and rejects an icon node', { skip: process.env.SHAPCN_REQUIRE_ALL ? false : !TSC || !tscExists(TSC) ? 'typescript not found (TSC_PATH, or npm i --no-save typescript)' : false }, async () => {
   const tsc = TSC;
   const { mkdtempSync, writeFileSync } = await import('node:fs');
   const { execFileSync } = await import('node:child_process');

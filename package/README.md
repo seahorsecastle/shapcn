@@ -14,7 +14,7 @@ npm i shape-aware-morph
 
 The package is ES modules only. In Node, `require('shape-aware-morph')` works only on Node 22.12 or newer. Use `import` on older versions.
 
-The core has no icon data. You import only the icons you use (see "Pick your icons"). The core alone is about 202 kB minified (78 kB gzipped). Each icon adds a few hundred bytes.
+The core has no icon data. You import only the icons you use (see "Pick your icons"). The core alone is about 204 kB minified (79 kB gzipped). Each icon adds a few hundred bytes.
 
 ## Use it
 
