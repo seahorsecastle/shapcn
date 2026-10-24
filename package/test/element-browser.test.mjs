@@ -216,7 +216,7 @@ test('5. a second press during a combined press does not snap from the wrong pic
 test('6. icons of the Remix family: a press that changes the icon and a move sway never draw a NaN path (about 1 run in 3 failed before)', { skip }, () => withBrowser(async (browser) => {
   const { readFileSync } = await import('node:fs');
   const json = readFileSync(PKG + '/data/families/remix-line-s.json', 'utf8');
-  const { page, errs } = await setup(browser, '<button id="b"><morph-icon id="m" size="64" hover="move" press="squat-jump" duration="500"></morph-icon></button>');
+  const { page, errs } = await setup(browser, '<button id="b"><morph-icon id="m" size="64" hover="move" press="squat-jump" duration="500"></morph-icon></button><script>' + FRESH + '<\/script>');
   page.on('console', (m) => { if (m.type() === 'error') errs.push(m.text().slice(0, 120)); });
   const r = await page.evaluate(async (json) => {
     window.shapcn.registerFamilyFile(json);
@@ -233,11 +233,14 @@ test('6. icons of the Remix family: a press that changes the icon and a move swa
         m.setAttribute('name', a); await new Promise((r) => setTimeout(r, 650));
         b.dispatchEvent(new PointerEvent('pointerenter', { pointerType: 'mouse' })); // the move sway
         const p = m.pressTo(c);
+        if (!(m._mi._run && m._mi._run.combined)) bad.push('not a combined run: ' + a + '>' + c);
         const t0 = performance.now();
         while (performance.now() - t0 < 700) { seen++; if (zeroRun()) { bad.push(a + '>' + c); break; } await new Promise((r) => setTimeout(r, 25)); }
         runs++;
         b.dispatchEvent(new PointerEvent('pointerleave', { pointerType: 'mouse' }));
-        await p;
+        const done = await p;
+        if (done !== true) bad.push('pressTo settled ' + done + ': ' + a + '>' + c);
+        if (m.querySelector('svg').innerHTML !== window.fresh(c)) bad.push('the rendered picture is not ' + c + ': ' + a);
       }
     }
     return { bad, seen, runs };

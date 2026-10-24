@@ -489,6 +489,7 @@ test('press with a new icon works on icons of the other families (their morph pa
           let worst = 0;
           for (let q = 0; q <= 40; q++) {
             for (const e of plan.frame(q / 40)) {
+              for (const why of dProblems(e.d)) fails.push(style + ' ' + a + '>' + b + ' q=' + q + ' ' + why);
               if (/(\s0){10,}/.test(' ' + e.d.replace(/[A-Za-z]/g, ' '))) { fails.push(style + ' ' + a + '>' + b + ' q=' + q + ' a run of zeros (NaN)'); break; }
               for (const v of e.d.match(/-?\d*\.?\d+/g).map(Number)) worst = Math.max(worst, -v, v - 24);
             }
@@ -499,6 +500,49 @@ test('press with a new icon works on icons of the other families (their morph pa
     }
   }
   report('family icons', fails.slice(0, 20));
+});
+
+// Every token of a path string must be a finite number, and every piece must have an even count of them (x y pairs).
+const dProblems = (d) => {
+  const out = [];
+  if (/NaN|Infinity|undefined/.test(d)) out.push('non-finite token');
+  for (const piece of d.split('M').filter((x) => x.trim())) {
+    const toks = piece.split(/[\sLZ]+/).filter(Boolean);
+    if (toks.some((t) => !/^-?\d*\.?\d+(e-?\d+)?$/i.test(t))) out.push('bad token in "' + piece.slice(0, 30) + '"');
+    if (toks.length % 2) out.push('odd count of coordinates');
+  }
+  return out;
+};
+const numsOf = (d) => d.split('M').filter((x) => x.trim()).map((x) => (x.match(/-?\d*\.?\d+(?:e-?\d+)?/gi) || []).map(Number)).filter((P) => P.length >= 4);
+
+test('press with a new icon on a family whose morph frames are written `M x y L x y`: the frames are the independent morph frames (a press of strength near 0 is the morph), every token is finite, every piece has x y pairs', async () => {
+  const { readFileSync } = await import('node:fs');
+  const fails = [];
+  let sawL = 0;
+  for (const f of ['remix-line-s', 'phosphor-regular-s', 'tabler-outline', 'hugeicons']) {
+    m.registerFamilyFile(JSON.parse(readFileSync(new URL('../data/families/' + f + '.json', import.meta.url), 'utf8')));
+    const all = m.getIconNames().filter((n) => n.startsWith(f + ':'));
+    const pick = all.filter((_, i) => i % Math.floor(all.length / 8) === 0).slice(0, 8);
+    for (let i = 0; i < pick.length; i++) {
+      const a = pick[i], b = pick[(i + 3) % pick.length];
+      const morph = m.planMorph(a, b, { easing: 'spring' });
+      if (morph.frame(0.5).some((e) => /L/.test(e.d))) sawL++;
+      for (const style of PRESS) {
+        const plan = m.planPress(a, { style, to: b, strength: 1e-6 }); // a press of almost no motion: the picture is the morph
+        const { ws, we } = plan.pressWindow;
+        for (const u of [0.1, 0.25, 0.4, 0.5, 0.6, 0.75, 0.9]) {
+          const frame = plan.frame(u);
+          for (const e of frame) for (const why of dProblems(e.d)) fails.push(style + ' ' + a + '>' + b + ' u=' + u + ' ' + why);
+          const expected = morph.frame(Math.min(1, Math.max(0, (u - ws) / (we - ws)))).flatMap((e) => numsOf(e.d));
+          const got = frame.flatMap((e) => numsOf(e.d));
+          const d = hd(got, expected);
+          if (!(d < 0.05)) fails.push(style + ' ' + a + '>' + b + ' u=' + u + ' differs from the morph frame by ' + d);
+        }
+      }
+    }
+  }
+  assert.ok(sawL > 0, 'the test must see morph frames in the `L` format (otherwise it tests nothing)');
+  report('morph frames of the families', fails.slice(0, 12));
 });
 
 test('index.d.ts declares the `to` option of planPress as a string (declaration text; the compile test below checks it with tsc)', async () => {
