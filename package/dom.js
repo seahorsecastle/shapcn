@@ -402,13 +402,15 @@ export class MorphIcon {
     const run = this._run;
     // A press that changes the icon runs: the icon is not at rest. Morph on from the picture on screen.
     if (run && run.combined) return this.morphTo(to, opts);
-    const style = isPressStyle(o.press) ? resolvePress(o.press) : 'squash';
+    // The press that runs now (not a combined one): the joined plan continues it, with its style, pivot and gain.
+    const joinPlan = run && run.press && !run.combined && run.plan.pressInfo ? run.plan : null;
+    const style = joinPlan ? joinPlan.pressInfo.style : isPressStyle(o.press) ? resolvePress(o.press) : 'squash';
     const fromT = run && run.press && !run.combined ? run.t : 0;
     const base = Number.isFinite(o.pressDuration) ? Math.max(o.pressDuration, pressToMs(style)) : pressToMs(style);
     const duration = Math.max(200, base * (1 - fromT));
     let plan;
     try {
-      plan = planPress(this._name, { ...o, style, to, fromT, strength: o.pressStrength });
+      plan = planPress(this._name, { ...o, style, to, fromT, strength: o.pressStrength, joinPlan });
     } catch (e) {
       return this.morphTo(to, opts);
     }

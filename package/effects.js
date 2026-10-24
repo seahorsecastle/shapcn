@@ -1280,11 +1280,13 @@ function alPressCtx(names) {
 }
 
 function planPressTo(name, to, opts) {
-  const style = isPressStyle(opts.style) ? resolvePress(opts.style) : 'squash';
+  // `opts.joinPlan`: the standalone press plan that runs now. The joined plan continues that press: its style, pivot and gain.
+  const joined = opts.joinPlan && opts.joinPlan.pressInfo ? opts.joinPlan.pressInfo : null;
+  const style = joined ? joined.style : isPressStyle(opts.style) ? resolvePress(opts.style) : 'squash';
   const key = 'p:' + style;
   const strength = Number.isFinite(opts.strength) && opts.strength > 0 ? opts.strength : STRENGTH_DEFAULT;
   const fromT = Number.isFinite(opts.fromT) ? alClamp(opts.fromT) : 0;
-  const morph = planMorph(name, to, { easing: 'spring', ...opts, style: undefined, to: undefined, strength: undefined, fromT: undefined });
+  const morph = planMorph(name, to, { easing: 'spring', ...opts, style: undefined, to: undefined, strength: undefined, fromT: undefined, joinPlan: undefined });
   const ctxC = alPressCtx([name, to]);
   const win = PRESS_TO_WINDOW[style] || [0.15, 0.7];
   // A press that joins one that runs starts from the context and the gain of that press (its pivot and size), so its first
@@ -1293,7 +1295,10 @@ function planPressTo(name, to, opts) {
   let gain0 = 1;
   if (fromT > 0) {
     try {
-      const info = planAlive(name, { click: true, style, strength: opts.strength, ...(opts.cornerAngle === undefined ? {} : { cornerAngle: opts.cornerAngle }) }).pressInfo;
+      // The running press if we know it; else rebuilt from the settings of this call (the same geometry knobs).
+      const geo = {};
+      for (const k of ['cornerAngle', 'chainGap', 'chainAngle']) if (opts[k] !== undefined) geo[k] = opts[k];
+      const info = joined || planAlive(name, { ...geo, click: true, style, strength: opts.strength }).pressInfo;
       if (info) {
         ctx0 = info.ctx;
         gain0 = info.gain;
@@ -1303,14 +1308,15 @@ function planPressTo(name, to, opts) {
     }
   }
   const BLEND = 0.4;
+  let speed = 1; // how fast the blend runs: raised only when the bound needs it (see the fit below). The first frame never changes.
   const ctxAt = (u) => {
     if (!ctx0) return ctxC;
-    const e = alSmooth(u / BLEND);
+    const e = alSmooth((u * speed) / BLEND);
     const out = {};
     for (const k of Object.keys(ctxC)) out[k] = typeof ctxC[k] === 'number' && typeof ctx0[k] === 'number' ? ctx0[k] + (ctxC[k] - ctx0[k]) * e : ctxC[k];
     return out;
   };
-  const gainAt = (u, g) => (ctx0 ? gain0 + (g - gain0) * alSmooth(u / BLEND) : g);
+  const gainAt = (u, g) => (ctx0 ? gain0 + (g - gain0) * alSmooth((u * speed) / BLEND) : g);
   // A press that is almost over (late) has no room for the morph window of its style: the morph then plays over the whole plan.
   const late = fromT > 0.7;
   const ws = late ? fromT : Math.max(win[0], fromT);
@@ -1324,7 +1330,11 @@ function planPressTo(name, to, opts) {
     d
       .split('M')
       .filter((seg) => seg.trim())
-      .map((seg) => dOf(alWarp(key, c, Float64Array.from(seg.trim().split(/\s+/).map(Number)), t, g)))
+      .map((seg) => {
+        const P = Float64Array.from(seg.trim().split(/\s+/).map(Number));
+        // a warp that is not affine bends a long straight piece: densify it, as the standalone press does
+        return dOf(alWarp(key, c, AFFINE_STYLES.has(key) ? P : alDensify(P), t, g));
+      })
       .join('');
   const frameAt = (u, g) => {
     const t = pressT(u);
@@ -1355,6 +1365,14 @@ function planPressTo(name, to, opts) {
       else hi = mid;
     }
     gain = lo;
+  }
+  const hard = ALIVE_BOUND - STYLE_FIT_MARGIN; // the limit the standalone press is fitted to
+  if (ctx0 && worst(gain) > hard + 1e-9) {
+    // The running press is big and the combined picture leaves the bound while the blend runs: blend faster. The first frame stays the picture on screen.
+    for (const sp of [1.5, 2, 3, 5, 8, 16]) {
+      speed = sp;
+      if (worst(gain) <= hard + 1e-9) break;
+    }
   }
   const plan = Object.create(morph);
   plan.kind = 'press-to';
@@ -1619,7 +1637,7 @@ export function planAlive(name, opts = {}) {
   }
   const plan = alPlanObject({ slots, n: S.length, strokeWidth: alStrokeWidth(name), kind: kind.kind, X, Wf });
   plan.live = liveInfo;
-  plan.pressInfo = pressInfo; // the warp context and the fitted gain of a press style: a press that joins this one starts from them
+  plan.pressInfo = pressInfo && style ? { ...pressInfo, style: style.replace(/^p:/, '') } : pressInfo; // the warp context, the fitted gain and the style of a press: a press that joins this one starts from them
   if (style && denseOf) {
     // Interruptible: `retargetPlan` can start from any frame of this plan.
     plan.dense = denseOf;

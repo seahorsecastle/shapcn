@@ -46,8 +46,10 @@ async function withBrowser(fn) {
   try { await fn(browser); } finally { await browser.close(); }
 }
 
+const FRESH = `window.fresh = (name) => { const m = document.createElement('morph-icon'); m.setAttribute('name', name); m.setAttribute('size', '64'); document.body.appendChild(m); const h = m.querySelector('svg').innerHTML; m.remove(); return h; };`;
+
 test('1. a removed icon leaves no document or button listeners; a reconnected icon works again', { skip }, () => withBrowser(async (browser) => {
-  const { page } = await setup(browser, '<div id="host"></div>');
+  const { page, errs } = await setup(browser, '<div id="host"></div>');
   const r = await page.evaluate(async () => {
     const out = {};
     const base = window.live('pointerdown', 'document');
@@ -78,31 +80,40 @@ test('1. a removed icon leaves no document or button listeners; a reconnected ic
     out.newAncestorPlays = svgs() !== rest;
     return out;
   });
-  assert.equal(r.after, 0, 'document pointerdown listeners left after removing 30 icons: ' + r.after + ' (during: ' + r.during + ')');
+  assert.equal(r.during, 30, 'the page did create 30 listeners (the spy works)');
+  assert.equal(r.after, 0, 'document pointerdown listeners left after removing 30 icons: ' + r.after);
   assert.equal(r.buttons, 0, 'pointerenter listeners left on the removed buttons: ' + r.buttons);
   assert.equal(r.oldAncestorPlays, false, 'the old ancestor still drives the icon');
   assert.equal(r.newAncestorPlays, true, 'the new ancestor does not drive the icon');
+  assert.deepEqual(errs, []);
 }));
 
-test('2. a live sway (hover="move") that is interrupted settles its Promise with false', { skip }, () => withBrowser(async (browser) => {
-  const { page } = await setup(browser, '<button><morph-icon id="m" name="bell" size="32" hover="move" press="pop"></morph-icon></button>');
+test('2. a live sway (hover="move") that is interrupted or destroyed settles its Promise with false', { skip }, () => withBrowser(async (browser) => {
+  const { page, errs } = await setup(browser, '<button><morph-icon id="m" name="bell" size="32" hover="move" press="pop"></morph-icon></button><div id="host"></div>');
   const r = await page.evaluate(async () => {
     const m = document.getElementById('m');
     const out = {};
-    for (const how of ['playPress', 'morphTo', 'destroy']) {
-      const p = how === 'destroy' ? m._mi.playAlive({ velocity: { vx: 0.6, vy: 0 } }) : m.playAlive({ velocity: { vx: 0.6, vy: 0 } });
+    const settle = (p) => Promise.race([p, new Promise((r) => setTimeout(() => r('pending'), 500))]);
+    for (const how of ['playPress', 'morphTo', 'remove', 'MorphIcon.destroy']) {
+      let p, el = m, mi = null;
+      if (how === 'remove') { el = m.cloneNode(false); el.id = 'tmp'; el.setAttribute('name', 'bell'); m.parentNode.appendChild(el); await new Promise((r) => setTimeout(r, 50)); }
+      if (how === 'MorphIcon.destroy') { mi = new window.shapcn.MorphIcon(document.getElementById('host'), { name: 'bell', hover: 'move' }); p = mi.playAlive({ velocity: { vx: 0.6, vy: 0 } }); }
+      else p = el.playAlive({ velocity: { vx: 0.6, vy: 0 } });
       await new Promise((r) => setTimeout(r, 80));
-      if (how === 'playPress') m.playPress(); else if (how === 'morphTo') m.morphTo('check'); else m._mi._cancel();
-      out[how] = await Promise.race([p, new Promise((r) => setTimeout(() => r('pending'), 400))]);
-      m.morphTo('bell'); await new Promise((r) => setTimeout(r, 700));
+      out[how + ' active'] = how === 'MorphIcon.destroy' ? !!mi._live : !!el._mi._live; // the sway runs before it is interrupted
+      if (how === 'playPress') m.playPress(); else if (how === 'morphTo') m.morphTo('check'); else if (how === 'remove') el.remove(); else mi.destroy();
+      out[how] = await settle(p);
+      if (how === 'morphTo') m.morphTo('bell');
+      await new Promise((r) => setTimeout(r, 900)); // let the interrupting run end before the next case
     }
     return out;
   });
-  assert.deepEqual(r, { playPress: false, morphTo: false, destroy: false });
+  assert.deepEqual(r, { 'playPress active': true, playPress: false, 'morphTo active': true, morphTo: false, 'remove active': true, remove: false, 'MorphIcon.destroy active': true, 'MorphIcon.destroy': false });
+  assert.deepEqual(errs, []);
 }));
 
 test('3. bold: enter, leave, enter again during the return keeps the held weight', { skip }, () => withBrowser(async (browser) => {
-  const { page } = await setup(browser, '<button style="padding:20px"><morph-icon id="m" name="heart" size="64" hover="bold"></morph-icon></button>');
+  const { page, errs } = await setup(browser, '<button style="padding:20px"><morph-icon id="m" name="heart" size="64" hover="bold"></morph-icon></button>');
   const rest = await page.evaluate(() => document.getElementById('m').querySelector('svg').innerHTML);
   const bb = await page.locator('#m').boundingBox();
   const c = [bb.x + bb.width / 2, bb.y + bb.height / 2];
@@ -111,56 +122,93 @@ test('3. bold: enter, leave, enter again during the return keeps the held weight
   await page.waitForTimeout(600);
   await page.mouse.move(5, 5);
   await page.waitForTimeout(90);
+  assert.equal(await page.evaluate(() => !!document.getElementById('m')._mi._run && document.getElementById('m')._mi._run.returning), true, 'the icon is in its return when the pointer comes back');
   await page.mouse.move(c[0], c[1], { steps: 2 });
   await page.waitForTimeout(900);
   const held = await page.evaluate(() => document.getElementById('m').querySelector('svg').innerHTML);
   assert.notEqual(held, rest, 'after re-entering during the return, the icon is back at rest while the pointer is over it');
+  assert.ok(/stroke-width="(2\.[5-9]|3)/.test(held), 'the held icon is drawn with a heavier stroke');
   await page.mouse.move(5, 5);
   await page.waitForTimeout(900);
   assert.equal(await page.evaluate(() => document.getElementById('m').querySelector('svg').innerHTML), rest, 'leaving lets go');
+  assert.deepEqual(errs, []);
 }));
 
-test('4. a name change that joins a running press does not jump', { skip }, () => withBrowser(async (browser) => {
-  const { page } = await setup(browser, '<button id="b" style="padding:20px"><morph-icon id="m" name="minus" size="64" press="squash" duration="600"></morph-icon></button>');
-  const worst = await page.evaluate(async () => {
+test('4. a press that joins a running press continues it: no jump, whatever the settings of the call that started it; the run ends on the destination', { skip }, () => withBrowser(async (browser) => {
+  const { page, errs } = await setup(browser, '<button id="b" style="padding:20px"><morph-icon id="m" name="minus" size="64" press="squash" press-strength="0.5" duration="600"></morph-icon></button><script>' + FRESH + '<\/script>');
+  const r = await page.evaluate(async () => {
     const m = document.getElementById('m'), b = document.getElementById('b');
-    let worst = 0;
-    for (const to of ['arrow-down', 'plus', 'x']) {
-      m.morphTo('minus'); await new Promise((r) => setTimeout(r, 800));
-      b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'mouse' }));
-      await new Promise((r) => setTimeout(r, 90));
-      const A = window.polys(m.querySelector('svg'));
-      m.setAttribute('name', to); // joins the press that runs
-      const B = window.polys(m.querySelector('svg'));
-      worst = Math.max(worst, window.dist(A, B));
-      await new Promise((r) => setTimeout(r, 800));
+    const out = { cases: [] };
+    const cases = [
+      ['attribute press, join by name', async (to) => { b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'mouse' })); await new Promise((r) => setTimeout(r, 90)); return () => { m.setAttribute('name', to); return Promise.resolve('attr'); }; }],
+      ['per-call strength 3 and duration 1000, join by pressTo', async (to) => { m.playPress({ pressStrength: 3, pressDuration: 1000 }); await new Promise((r) => setTimeout(r, 200)); return () => m.pressTo(to); }],
+      ['per-call style burst, join by pressTo', async (to) => { m.playPress({ press: 'burst', pressStrength: 2.5 }); await new Promise((r) => setTimeout(r, 150)); return () => m.pressTo(to); }],
+    ];
+    for (const [label, start] of cases) {
+      for (const to of ['arrow-down', 'plus']) {
+        m.morphTo('minus'); await new Promise((r) => setTimeout(r, 900));
+        const join = await start(to);
+        const active = !!(m._mi._run && m._mi._run.press && !m._mi._run.combined); // the press runs before it is joined
+        const A = window.polys(m.querySelector('svg'));
+        const p = join();
+        const B = window.polys(m.querySelector('svg'));
+        const combined = !!(m._mi._run && m._mi._run.combined);
+        const res = await Promise.race([p, new Promise((r) => setTimeout(() => r('pending'), 2500))]);
+        await new Promise((r) => setTimeout(r, 1200));
+        out.cases.push({ label, to, active, combined, jump: window.dist(A, B), result: res, final: m.querySelector('svg').innerHTML === window.fresh(to), name: m.getAttribute('name') });
+      }
     }
-    return worst;
+    return out;
   });
-  assert.ok(worst < 0.1, 'the first frame of the joined press differs from the interrupted frame by ' + worst.toFixed(2) + ' units');
+  for (const c of r.cases) {
+    assert.equal(c.active, true, c.label + ': the press ran before it was joined');
+    assert.equal(c.combined, true, c.label + ': the joined run is a combined press');
+    assert.ok(c.jump < 0.1, c.label + ' -> ' + c.to + ': the first frame of the joined press differs from the interrupted frame by ' + c.jump.toFixed(2) + ' units');
+    assert.ok(c.result === true || c.result === 'attr', c.label + ': the joined press did not settle with true: ' + c.result);
+    assert.equal(c.final, true, c.label + ' -> ' + c.to + ': the rendered picture at the end is the destination icon');
+  }
+  assert.deepEqual(errs, []);
 }));
 
 test('5. a second press during a combined press does not snap from the wrong picture', { skip }, () => withBrowser(async (browser) => {
-  const { page } = await setup(browser, '<button id="b"><morph-icon id="m" name="trash" size="64" press="squash" duration="600"></morph-icon></button>');
+  const { page, errs } = await setup(browser, '<button id="b"><morph-icon id="m" name="trash" size="64" press="squash" duration="600"></morph-icon></button><script>' + FRESH + '<\/script>');
   const r = await page.evaluate(async () => {
     const m = document.getElementById('m'), out = {};
-    m.pressTo('check');
+    const settle = (p) => Promise.race([p, new Promise((r) => setTimeout(() => r('pending'), 3000))]);
+    const p1 = m.pressTo('check');
     await new Promise((r) => setTimeout(r, 160));
+    out.activeBefore = !!(m._mi._run && m._mi._run.combined);
     let A = window.polys(m.querySelector('svg'));
-    m.playPress();
-    out.press = window.dist(A, window.polys(m.querySelector('svg')));
-    await new Promise((r) => setTimeout(r, 900));
-    m.pressTo('check'); await new Promise((r) => setTimeout(r, 900));
-    m.pressTo('trash');
+    out.press = await m.playPress(); // refused: the combined press plays to its end
+    out.pressJump = window.dist(A, window.polys(m.querySelector('svg')));
+    out.stillCombined = !!(m._mi._run && m._mi._run.combined);
+    out.first = await settle(p1);
+    out.afterFirst = m.querySelector('svg').innerHTML === window.fresh('check');
+    // pressTo back while a combined press runs: morph on from the picture on screen
+    const p2 = m.pressTo('trash');
     await new Promise((r) => setTimeout(r, 160));
+    out.active2 = !!(m._mi._run && m._mi._run.combined);
     A = window.polys(m.querySelector('svg'));
-    m.pressTo('check');
-    out.pressTo = window.dist(A, window.polys(m.querySelector('svg')));
-    await new Promise((r) => setTimeout(r, 900));
+    const p3 = m.pressTo('check');
+    out.pressToJump = window.dist(A, window.polys(m.querySelector('svg')));
+    out.p2 = await settle(p2); // the interrupted run settles false
+    out.p3 = await settle(p3);
+    await new Promise((r) => setTimeout(r, 800));
     out.end = m.getAttribute('name');
+    out.final = m.querySelector('svg').innerHTML === window.fresh('check');
     return out;
   });
-  assert.ok(r.press < 0.1, 'playPress during a combined press jumped by ' + r.press.toFixed(2));
-  assert.ok(r.pressTo < 0.1, 'pressTo during a combined press jumped by ' + r.pressTo.toFixed(2));
+  assert.equal(r.activeBefore, true, 'the combined press runs before the second press');
+  assert.equal(r.press, false, 'playPress during a combined press is refused');
+  assert.ok(r.pressJump < 0.1, 'playPress during a combined press jumped by ' + r.pressJump.toFixed(2));
+  assert.equal(r.stillCombined, true, 'the combined press goes on');
+  assert.equal(r.first, true, 'the first pressTo settles true');
+  assert.equal(r.afterFirst, true, 'the picture after the first pressTo is the check icon');
+  assert.equal(r.active2, true, 'the second combined press runs before it is interrupted');
+  assert.ok(r.pressToJump < 0.1, 'pressTo during a combined press jumped by ' + r.pressToJump.toFixed(2));
+  assert.equal(r.p2, false, 'the interrupted pressTo settles false');
+  assert.ok(r.p3 === true || r.p3 === false, 'the last pressTo settles: ' + r.p3);
   assert.equal(r.end, 'check');
+  assert.equal(r.final, true, 'the rendered picture at the end is the check icon');
+  assert.deepEqual(errs, []);
 }));

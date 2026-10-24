@@ -6,7 +6,7 @@
 //   SHAPCN_FULL=1 node --test test/hover-press.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { m, names, randomPairs } from './helpers.mjs';
+import { m, names, randomPairs, PKG } from './helpers.mjs';
 
 const FULL = process.env.SHAPCN_FULL === '1';
 const APP_ICONS = 'heart bookmark bell share send mail star play search settings trash user-plus circle-plus user-check mail-open sun moon upload copy menu eye phone archive repeat'.split(' ');
@@ -408,9 +408,63 @@ test('a press that joins a running press starts on the picture of that press (no
   report('joined press jump', fails);
 });
 
-test('the `to` option is an icon name (string): the types, and a non-string does not change the icon', async () => {
+test('a press that joins a running press continues it, whatever the settings of the replacement call (strength, style, geometry knobs)', () => {
+  const fails = [];
+  const GEO = [{}, { chainGap: 0.5, chainAngle: 30 }, { cornerAngle: 30 }]; // the replacement call carries the same geometry knobs, as the element does
+  for (const geo of GEO) {
+    for (const [runStyle, runStrength, newStyle, newStrength] of [['squash', 3, 'squash', 0.5], ['squash', 0.5, 'burst', 3], ['squat-jump', 3, 'pop', 0.5], ['burst', 2.5, 'squash', 1], ['pop', 0.5, 'squat-jump', 3]]) {
+      for (const [a, b] of [['minus', 'arrow-down'], ['heart', 'check'], ['sun', 'moon'], ['trash', 'check']]) {
+        for (const fromT of [0.2, 0.45, 0.7]) {
+          const run = m.planPress(a, { style: runStyle, strength: runStrength, ...geo });
+          // the replacement call has another style and strength; the running press is passed as joinPlan
+          const joined = m.planPress(a, { style: newStyle, strength: newStrength, to: b, fromT, joinPlan: run, ...geo });
+          const d = hd(polysOf(joined.frame(0)), polysOf(run.frame(fromT)));
+          if (d > 0.05) fails.push(JSON.stringify(geo) + ' run ' + runStyle + '@' + runStrength + ' then ' + newStyle + '@' + newStrength + ' ' + a + '>' + b + ' fromT=' + fromT + ' jump ' + d.toFixed(2));
+          // the joined plan still ends on the new icon and stays in the bound
+          if (hd(polysOf(joined.frame(1)), restPolys(b)) > 0.05) fails.push('end ' + a + '>' + b);
+          let worst = 0;
+          for (let q = 0; q <= 40; q++) for (const e of joined.frame(q / 40)) for (const v of e.d.replace(/M/g, ' ').trim().split(/\s+/).map(Number)) worst = Math.max(worst, -v, v - 24);
+          if (worst > BOUND + 1e-9) fails.push('bound ' + a + '>' + b + ' ' + worst.toFixed(2));
+        }
+      }
+    }
+  }
+  report('continuity with settings of the replacement call', fails);
+});
+
+test('index.d.ts declares the `to` option of planPress as a string (declaration text; the compile test below checks it with tsc)', async () => {
   const { readFileSync } = await import('node:fs');
   const dts = readFileSync(new URL('../index.d.ts', import.meta.url), 'utf8');
-  assert.match(dts, /to\?: string;/, 'index.d.ts types `to` as string');
-  assert.doesNotMatch(dts, /to\?: IconSource/, 'index.d.ts must not say IconSource for `to`');
+  assert.match(dts, /to\?: string;/);
+  assert.doesNotMatch(dts, /to\?: IconSource/);
+});
+
+test('a non-string `to` is not supported: planPress ignores it and presses the old icon (plain press, no morph)', () => {
+  const nodes = [['circle', { cx: 12, cy: 12, r: 8 }]];
+  for (const to of [nodes, { nodes }, 42, null, '', undefined]) {
+    const plan = m.planPress('heart', { style: 'pop', to });
+    assert.equal(plan.pressWindow, undefined, 'no combined plan for ' + JSON.stringify(to));
+    assert.ok(hd(polysOf(plan.frame(1)), restPolys('heart')) < 0.05, 'ends on the heart');
+  }
+});
+
+const { createRequire: tscRequire } = await import('node:module');
+const { existsSync: tscExists } = await import('node:fs');
+let TSC = process.env.TSC_PATH || null;
+if (!TSC) { try { TSC = tscRequire((process.env.PLAYWRIGHT_DIR || PKG) + '/').resolve('typescript/bin/tsc'); } catch (e) { TSC = null; } }
+// skips when typescript is not found: set TSC_PATH=/path/to/typescript/bin/tsc, or npm i --no-save typescript
+test('TypeScript (tsc --strict): `to` takes a string and rejects an icon node', { skip: !TSC || !tscExists(TSC) ? 'typescript not found (TSC_PATH, or npm i --no-save typescript)' : false }, async () => {
+  const tsc = TSC;
+  const { mkdtempSync, writeFileSync } = await import('node:fs');
+  const { execFileSync } = await import('node:child_process');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const dir = mkdtempSync(join(tmpdir(), 'tsc-'));
+  const run = (name, body) => {
+    writeFileSync(join(dir, name), "import { planPress, planAlive } from '" + PKG + "/index';\n" + body);
+    try { execFileSync(process.execPath, [tsc, '--noEmit', '--strict', '--skipLibCheck', '--target', 'es2020', '--module', 'esnext', '--moduleResolution', 'bundler', join(dir, name)], { encoding: 'utf8', stdio: 'pipe' }); return ''; } catch (e) { return String(e.stdout || e.stderr || e.message); }
+  };
+  assert.equal(run('ok.ts', "planPress('heart', { style: 'burst', to: 'check', fromT: 0.3, strength: 2 });\nplanAlive('bell', { style: 'grow' });"), '', 'a string `to` must compile');
+  const bad = run('bad.ts', "planPress('heart', { to: [['circle', { cx: 12, cy: 12, r: 8 }]] });");
+  assert.match(bad, /error TS2\d+/, 'an icon node as `to` must not compile: ' + bad);
 });
