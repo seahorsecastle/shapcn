@@ -8,7 +8,7 @@ import { extDir } from './ext-dir.mjs';
 const EXT = extDir(); // the test build (with the test hooks), or EXT_DIR
 const H = await boot(EXT);
 const { check, group, openPage, setSettings, center, idle, away, url, ctx } = H;
-const DEF = { enabled: true, hover: 'wiggle', click: 'pop', strength: 1.5, offSites: [] };
+const DEF = { enabled: true, hover: 'grow', click: 'pop', strength: 1.5, offSites: [] };
 
 // Count dark pixels in a clip of the page (the screenshot is decoded in a canvas of a scratch page).
 async function ink(P, clip) {
@@ -48,7 +48,7 @@ try {
   group('1 unhide keeps page changes');
   {
     const P = await openPage(url('lucide.html'));
-    await setSettings(P, { ...DEF, hover: 'wiggle', click: 'none' });
+    await setSettings(P, { ...DEF, hover: 'grow', click: 'none' });
     await away(P);
     const c = await center(P, '#heart svg');
     await P.page.mouse.move(c.x, c.y);
@@ -82,7 +82,7 @@ try {
   group('2 failed start is undone');
   {
     const P = await openPage(url('lucide.html'));
-    await setSettings(P, { ...DEF, hover: 'wiggle', click: 'pop' });
+    await setSettings(P, { ...DEF, hover: 'grow', click: 'pop' });
     await P.iso('__shapcn.faults.frame = true; true');
     const before = await P.page.evaluate(() => document.querySelector('#heart svg').outerHTML);
     await away(P);
@@ -105,7 +105,7 @@ try {
   group('3 press during hover is visible');
   {
     const P = await openPage(url('lucide.html'));
-    await setSettings(P, { ...DEF, hover: 'wiggle', click: 'burst', strength: 1.5 });
+    await setSettings(P, { ...DEF, hover: 'grow', click: 'burst', strength: 1.5 });
     await away(P);
     await idle(P);
     const c = await center(P, '#heart svg');
@@ -297,13 +297,13 @@ try {
     const v3 = await val();
     await pop.keyboard.press('ArrowUp');
     const v4 = await val();
-    check('one tab stop in the list; ArrowDown, End, Home, ArrowUp move the focus', stops === 1 && v0 === 'wiggle' && v1 === 'grow' && v2 === 'move' && v3 === 'none' && v4 === 'none', `tab stops ${stops}; focus: ${v0}, ${v1}, ${v2}, ${v3}, ${v4}`);
+    check('one tab stop in the list; ArrowDown, End, Home, ArrowUp move the focus', stops === 1 && v0 === 'grow' && v1 === 'bend' && v2 === 'move' && v3 === 'none' && v4 === 'none', `tab stops ${stops}; focus: ${v0}, ${v1}, ${v2}, ${v3}, ${v4}`);
     await pop.keyboard.press('ArrowDown');
     await pop.keyboard.press('ArrowDown');
     await pop.keyboard.press('Enter');
     await sleep(150);
     const chosen = await pop.evaluate(() => new Promise((r) => chrome.storage.sync.get('hover', r)));
-    check('Enter on the focused option chooses it, and focus goes back to the button', chosen.hover === 'grow' && (await val()) === 'hover', `stored ${chosen.hover}, focus on ${await val()}`);
+    check('Enter on the focused option chooses it, and focus goes back to the button', chosen.hover === 'bend' && (await val()) === 'hover', `stored ${chosen.hover}, focus on ${await val()}`);
     await pop.keyboard.press('Enter');
     await pop.keyboard.press('ArrowDown');
     await pop.keyboard.press('Escape');
@@ -317,7 +317,7 @@ try {
   group('A transition longhands');
   {
     const P = await openPage(url('lucide.html'));
-    await setSettings(P, { ...DEF, hover: 'wiggle', click: 'none' });
+    await setSettings(P, { ...DEF, hover: 'grow', click: 'none' });
     for (const [id, style] of [['heart', 'transition-duration:.2s'], ['bell', 'transition-property: color; transition-delay: 50ms; color: rgb(10, 20, 30)']]) {
       await P.page.evaluate(([i, st]) => document.querySelector('#' + i + ' svg').setAttribute('style', st), [id, style]);
       const before = await P.page.evaluate((i) => document.querySelector('#' + i + ' svg').getAttribute('style'), id);
@@ -454,7 +454,7 @@ try {
   group('R3-3 hover records');
   {
     const P = await openPage(url('lucide.html'));
-    await setSettings(P, { ...DEF, hover: 'wiggle', click: 'none' });
+    await setSettings(P, { ...DEF, hover: 'grow', click: 'none' });
     await away(P);
     const c = await center(P, '#heart svg');
     await P.page.mouse.move(c.x, c.y);
@@ -469,11 +469,11 @@ try {
     await P.page.close();
 
     const Q = await openPage(url('lucide.html'));
-    await setSettings(Q, { ...DEF, hover: 'wiggle', click: 'none' });
+    await setSettings(Q, { ...DEF, hover: 'grow', click: 'none' });
     await away(Q);
     const c2 = await center(Q, '#bell svg');
     await Q.page.mouse.move(c2.x, c2.y);
-    await sleep(900); // the wiggle has ended: no run, only the hover record
+    await sleep(900); // the grow has ended: no run, only the hover record
     // from here on the content script sees no pointer, scroll or resize event: the page stops them in the capture phase of window
     await Q.page.evaluate(() => { for (const t of ['pointerover', 'pointerout', 'pointermove', 'pointerdown', 'pointercancel', 'scroll', 'resize']) window.addEventListener(t, (e) => e.stopImmediatePropagation(), true); });
     const t0 = await hook(Q, 'idleTimer()');
@@ -489,7 +489,7 @@ try {
   group('D1 clone during a run');
   {
     const P = await openPage(url('defects.html'));
-    await setSettings(P, { ...DEF, hover: 'wiggle', click: 'none' });
+    await setSettings(P, { ...DEF, hover: 'grow', click: 'none' });
     for (const [id, how] of [['c1', "const s = document.querySelector('#c1 svg'); s.replaceWith(s.cloneNode(true));"], ['c2', "const b = document.getElementById('c2'); b.innerHTML = b.innerHTML;"]]) {
       await away(P);
       await idle(P);
@@ -581,7 +581,7 @@ try {
   group('P1 clones during a run');
   {
     const P = await openPage(url('defects2.html'));
-    await setSettings(P, { ...DEF, hover: 'wiggle', click: 'none' });
+    await setSettings(P, { ...DEF, hover: 'grow', click: 'none' });
     // normal run: the page replaces the svg by a copy, and re-serializes another one
     for (const [id, how] of [['k1', "const s = document.querySelector('#k1 svg'); s.replaceWith(s.cloneNode(true));"], ['k2', "const b = document.getElementById('k2'); b.innerHTML = b.innerHTML;"]]) {
       await away(P);
@@ -878,6 +878,37 @@ try {
     const reads = (await P.iso('__shapcn.stats.parentReads')) - r0;
     check('20,000 leaves under 512 ancestors: parent reads are about nodes + depth (under 60,000), delivery under 40 ms (0.1.5 needs about 275 ms)', reads < 60000 && t.observer < 40, `parent reads ${reads}, build ${t.build.toFixed(1)} ms, observer ${t.observer.toFixed(1)} ms`);
     await P.page.close();
+  }
+
+  // ============================================================ wiggle is retired (owner, 0.1.7)
+  group('W wiggle retired');
+  {
+    // a fresh install: the default hover style is grow
+    const P = await openPage(url('lucide.html'));
+    await P.iso('new Promise((r) => chrome.storage.sync.clear(r))');
+    await sleep(300);
+    await P.page.reload();
+    await sleep(600);
+    const def = await P.iso('__shapcn.settings.hover');
+    check('default hover style is grow', def === 'grow', String(def));
+    // settings saved by an older version say wiggle: the page plays grow
+    await P.iso("new Promise((r) => chrome.storage.sync.set({ enabled: true, hover: 'wiggle', click: 'none', strength: 1.5, offSites: [] }, r))");
+    await sleep(400);
+    const mig = await P.iso('__shapcn.settings.hover');
+    const r = await H.hoverRun(P, '#heart svg', 'heart');
+    check("a stored 'wiggle' plays as grow", mig === 'grow' && r.frames.length >= 8 && r.styles.join() === 'grow', `settings.hover ${mig}, frames ${r.frames.length}, style ${r.styles.join('/')}`);
+    await P.page.close();
+    // the popup shows Grow, offers no wiggle, and saves the migration
+    const pop = await ctx.newPage();
+    await pop.goto(`chrome-extension://${H.EXT_ID}/popup.html?host=localhost`);
+    await pop.waitForSelector('#hover .cur');
+    await sleep(500);
+    const cur = await pop.locator('#hover .cur').textContent();
+    const saved = (await pop.evaluate(() => new Promise((r) => chrome.storage.sync.get('hover', r)))).hover;
+    await pop.locator('#hover').click();
+    const values = await pop.locator('#hover-menu .opt').evaluateAll((els) => els.map((e) => e.dataset.value));
+    check("popup: stored wiggle shows as Grow and is saved as 'grow'; the menu has no wiggle", cur === 'Grow' && saved === 'grow' && !values.includes('wiggle') && values.join() === 'none,grow,bend,bold,cascade,move', `shown ${cur}, saved ${saved}, menu ${values.join()}`);
+    await pop.close();
   }
 } finally {
   const pass = H.results.filter((r) => r.ok).length;

@@ -209,7 +209,7 @@ const FIXTURES = [
   { file: 'lucide.html', icons: ['heart', 'bell', 'bookmark', 'settings', 'search', 'plus', 'star', 'styled'].map((n) => ['#' + n + ' svg', n]), clickIds: ['heart', 'bell', 'bookmark', 'settings', 'search', 'plus', 'star', 'styled'], click: (id) => '#' + id },
 ];
 
-const DEFAULT_SET = { enabled: true, hover: 'wiggle', click: 'pop', strength: 1.5, offSites: [] };
+const DEFAULT_SET = { enabled: true, hover: 'grow', click: 'pop', strength: 1.5, offSites: [] };
 
 try {
   // ============================================================ A. hover on every fixture icon
@@ -259,7 +259,7 @@ try {
   {
     const P = await openPage(url('x-like.html'));
     const L = await openPage(url('lucide.html'));
-    const HOVER = ['wiggle', 'grow', 'bend', 'bold', 'cascade', 'move'];
+    const HOVER = ['grow', 'bend', 'bold', 'cascade', 'move']; // wiggle is retired: it is not in the popup
     const PRESS = ['pop', 'squash', 'squat-jump', 'burst'];
     const fallbacks = {};
     for (const [Pg, sel, id, label] of [[P, '#like svg', 'like', 'fill: like'], [P, '#reply svg', 'reply', 'fill: reply (has a hole)'], [P, '#share svg', 'share', 'fill: share (two parts)'], [L, '#heart svg', 'heart', 'stroke: heart']]) {
@@ -297,7 +297,7 @@ try {
   group('react-like');
   {
     const P = await openPage(url('react-like.html'));
-    await setSettings(P, { ...DEFAULT_SET, hover: 'wiggle', click: 'pop' });
+    await setSettings(P, { ...DEFAULT_SET, hover: 'grow', click: 'pop' });
     await away(P);
     const r0 = await P.page.evaluate(() => window.renders);
     const c = await center(P, '#like svg');
@@ -414,17 +414,17 @@ try {
     await pop.reload();
     await pop.waitForSelector('#hover .cur');
     await sleep(200);
-    check('popup shows the defaults', (await pop.locator('#hover .cur').textContent()) === 'Wiggle' && (await pop.locator('#click .cur').textContent()) === 'Pop' && (await pop.locator('#strength').inputValue()) === '1.5');
+    check('popup shows the defaults', (await pop.locator('#hover .cur').textContent()) === 'Grow' && (await pop.locator('#click .cur').textContent()) === 'Pop' && (await pop.locator('#strength').inputValue()) === '1.5');
     await pop.locator('#hover').click();
     const hoverRows = await pop.locator('#hover-menu .opt').count();
     const hoverIcons = await pop.locator('#hover-menu .opt morph-icon svg').count();
     await pop.locator('#click').click();
     const clickRows = await pop.locator('#click-menu .opt').count();
-    check('hover menu: None + 6 styles, each with a live icon', hoverRows === 7 && hoverIcons === 7, `rows ${hoverRows}, icons ${hoverIcons}`);
+    check('hover menu: None + 5 styles (no wiggle), each with a live icon', hoverRows === 6 && hoverIcons === 6, `rows ${hoverRows}, icons ${hoverIcons}`);
     check('click menu: None + 4 styles', clickRows === 5, `rows ${clickRows}`);
     // a row preview plays on row hover
     await pop.locator('#hover').click();
-    const row = pop.locator('#hover-menu .opt[data-value="grow"]');
+    const row = pop.locator('#hover-menu .opt[data-value="bend"]'); // not the chosen row: the chosen row is focused when the menu opens, and its icon moves
     const ic = row.locator('morph-icon');
     const b0 = await ic.evaluate((el) => el.querySelector('svg').innerHTML);
     const bb = await row.boundingBox();
@@ -441,7 +441,7 @@ try {
     await row.click();
     await sleep(120);
     let s = await pop.evaluate(() => new Promise((r) => chrome.storage.sync.get(null, r)));
-    check('choosing a hover style stores it', s.hover === 'grow', JSON.stringify(s.hover));
+    check('choosing a hover style stores it', s.hover === 'bend', JSON.stringify(s.hover));
     await pop.locator('#click').click();
     await pop.locator('#click-menu .opt[data-value="burst"]').click();
     await sleep(120);

@@ -7,7 +7,7 @@
 import * as S from './engine.js';
 import { regionMerger } from './fillregions.js';
 
-const DEFAULTS = { enabled: true, hover: 'wiggle', click: 'pop', strength: 1.5, offSites: [] };
+const DEFAULTS = { enabled: true, hover: 'grow', click: 'pop', strength: 1.5, offSites: [] };
 const settings = { ...DEFAULTS };
 const MIN = 12;
 const MAX = 48;
@@ -53,6 +53,7 @@ try {
 
 function applySettings(next) {
   for (const k of Object.keys(DEFAULTS)) if (next && next[k] !== undefined) settings[k] = next[k];
+  if (settings.hover === 'wiggle') settings.hover = 'grow'; // wiggle is retired: a stored 'wiggle' plays as 'grow' (the popup saves the change)
   if (!Array.isArray(settings.offSites)) settings.offSites = [];
   const s = Number(settings.strength);
   settings.strength = Number.isFinite(s) ? Math.min(3, Math.max(0.5, s)) : 1.5;

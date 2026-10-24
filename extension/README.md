@@ -8,7 +8,7 @@ A Chrome extension (Manifest V3) that makes the small icons on any web page come
 ## What it does
 
 - Finds small inline `<svg>` icons (12 to 48 px) inside or near a button, a link, `[role=button]` and similar. It also reads `<svg><use href="#id">` when the target is in the same page.
-- Hover styles: wiggle, grow, bend, bold, cascade, move. Click styles: pop, squash, squat-jump, burst. Strength 0.5 to 3 (default 1.5). Default: hover wiggle, click pop.
+- Hover styles: grow, bend, bold, cascade, move (wiggle is retired). Click styles: pop, squash, squat-jump, burst. Strength 0.5 to 3 (default 1.5). Default: hover grow, click pop. Settings saved by an older version that say wiggle are read as grow.
 - The popup has: Enabled, Off on this site, Hover style, Click style, Strength. Each menu row plays its style on a small live icon. Changes reach open tabs at once.
 - It does nothing when `prefers-reduced-motion: reduce` is set, and it stops at once if that is turned on during a motion.
 

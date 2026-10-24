@@ -2,9 +2,18 @@
 import { registerIcons, defineMorphIcon, HOVER_STYLES, PRESS_STYLES, iconToSVG } from './engine.js';
 import { heart, thumbsUp, shapes } from '../../package/lucide.js';
 
-const DEFAULTS = { enabled: true, hover: 'wiggle', click: 'pop', strength: 1.5, offSites: [] };
-const LABEL = { none: 'None', wiggle: 'Wiggle', grow: 'Grow', bend: 'Bend', bold: 'Bold', cascade: 'Cascade', move: 'Move', pop: 'Pop', squash: 'Squash', 'squat-jump': 'Squat jump', burst: 'Burst' };
+const DEFAULTS = { enabled: true, hover: 'grow', click: 'pop', strength: 1.5, offSites: [] };
+const LABEL = { none: 'None', grow: 'Grow', bend: 'Bend', bold: 'Bold', cascade: 'Cascade', move: 'Move', pop: 'Pop', squash: 'Squash', 'squat-jump': 'Squat jump', burst: 'Burst' };
 let cur = { ...DEFAULTS };
+// Wiggle is retired. A stored 'wiggle' becomes 'grow' (the page scripts already play it as grow; the popup saves the change).
+function migrate(v) {
+  const o = { ...DEFAULTS, ...v };
+  if (o.hover === 'wiggle') {
+    o.hover = 'grow';
+    return [o, true];
+  }
+  return [o, false];
+}
 // `?host=name` sets the site by hand (used when the popup is opened as a plain page, for example in tests).
 let host = TEST_HOOKS ? new URLSearchParams(location.search).get('host') || '' : ''; // the ?host= override is for tests only
 
@@ -56,7 +65,7 @@ function save(patch) {
 }
 
 function buildMenu(kind) {
-  const list = kind === 'hover' ? HOVER_STYLES : PRESS_STYLES;
+  const list = kind === 'hover' ? HOVER_STYLES.filter((s) => s !== 'wiggle') : PRESS_STYLES; // wiggle is retired: it is not offered
   const menu = $(kind + '-menu');
   menu.textContent = '';
   for (const v of ['none', ...list]) {
@@ -185,8 +194,10 @@ $('strength').addEventListener('change', (e) => {
 
 try {
   chrome.storage.sync.get(DEFAULTS, (v) => {
-    cur = { ...DEFAULTS, ...v };
+    const [o, changed] = migrate(v);
+    cur = o;
     refresh();
+    if (changed) save({ hover: 'grow' });
   });
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     const tab = tabs && tabs[0];
