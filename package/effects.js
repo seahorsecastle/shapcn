@@ -1,6 +1,7 @@
 // Morphicon effects (round 6): appear and disappear as plans. Built only on the hooks of core.js.
 // Round 15 adds `planAlive`: a one-shot "life" wiggle for hover (SPEC R15-1 to R15-5).
-import { DEFAULTS, easings, iconLoops, planToLoops, planDraw, iconToStrokes, getIconInfo } from './core.js';
+// Round 19 adds the hover styles (grow, bend, bold, cascade, move) and the press styles (pop, squash, squat-jump, burst).
+import { DEFAULTS, easings, iconLoops, planToLoops, planDraw, iconToStrokes, getIconInfo, planMorph } from './core.js';
 
 const FX_CX = 12;
 const FX_CY = 12;
@@ -468,6 +469,896 @@ function alStrokeWidth(name) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Round 19: hover and press styles (promoted from the rollover lab, owner-approved).
+//
+// Hover: `wiggle` (the alive rig picks above), `grow`, `bend`, `bold` (held while hovered), `cascade`, `move`
+// (live sway from the pointer, `createSway`). Press: `pop`, `squash`, `squat-jump`, `burst`. A press can also change the
+// icon (`planPress(name, { style, to })`). Every style returns the same plan interface as `planAlive`: frame(0) and
+// frame(1) are the rest icon, no point goes more than 3 units outside the 24 box, the stroke width never changes, there
+// is no fading, and two strokes that meet at a point move together in every frame. The default strength is 1.5.
+// ---------------------------------------------------------------------------
+
+/** The hover styles. `hover="alive"` is the old name of `wiggle`. */
+export const HOVER_STYLES = Object.freeze(['wiggle', 'grow', 'bend', 'bold', 'cascade', 'move']);
+/** The press styles. `anticipate-jump` is the old name of `squat-jump`. */
+export const PRESS_STYLES = Object.freeze(['pop', 'squash', 'squat-jump', 'burst']);
+
+const HOVER_ALIAS = Object.freeze({ wiggle: 'alive' });
+const PRESS_ALIAS = Object.freeze({ 'anticipate-jump': 'squat-jump' });
+/** Is this a hover name the element or `planAlive` accepts? */
+export const isHoverStyle = (name) => HOVER_STYLES.includes(name) || name === 'alive';
+/** Is this a press name the element or `planPress` accepts? */
+export const isPressStyle = (name) => PRESS_STYLES.includes(name) || name === 'anticipate-jump';
+/** The internal name of a hover style (`wiggle` is `alive`). */
+export const resolveHover = (name) => HOVER_ALIAS[name] || name;
+/** The internal name of a press style (`anticipate-jump` is `squat-jump`). */
+export const resolvePress = (name) => PRESS_ALIAS[name] || name;
+const PLAN_HOVER = ['grow', 'bend', 'bold', 'cascade', 'move']; // the hover styles that have their own motion code (wiggle is the rig-picked one)
+
+const ALIVE_MS = Object.freeze({ alive: 600, bold: 250, cascade: 500, move: 900 }); // every style not listed is 400 ms
+const ALIVE_DEFAULT_MS = 400;
+const PRESS_MS = Object.freeze({ squash: 300, pop: 300, 'squat-jump': 500, burst: 500 });
+/** The default run time in ms of a hover style. */
+export const hoverMs = (name) => ALIVE_MS[resolveHover(name)] || ALIVE_DEFAULT_MS;
+/** The default run time in ms of a press style. */
+export const pressMs = (name) => PRESS_MS[resolvePress(name)];
+/** Time in ms of the return to rest when the pointer leaves in the middle of a hover run. */
+export const RETARGET_MS = 240;
+
+const STYLE_STEP = 0.6; // units: the largest gap between two points after densifying (non-affine styles)
+const STYLE_OUT = 0.4; // fraction of the timeline spent on the way out; the rest is the spring back
+const STYLE_FIT_TIMES = 96; // times sampled to fit the bound
+const STYLE_FIT_MARGIN = 0.05; // units kept inside the bound for the 2-decimal rounding of the path
+const STRENGTH_DEFAULT = 1.5; // the default strength of every style (the slider goes from 0.5 to 3)
+const SPREAD_UNITS = 1.6; // grow: units the far edge moves out (grows with the square of the distance)
+const BEND_AMP = 1.1; // bend: units of the largest offset
+const BEND_CROSS = 0.7; // bend: the second axis bends this fraction of the first
+const BEND_WAVE = 0.35; // bend: the second harmonic (an S curve) is this fraction of the first
+const BEND_WAVE_LAG = 0.12; // bend: the S curve starts this fraction of the timeline later
+const BEND_GROW = 0.04; // bend: a small growth so the bend reads at a glance
+const BOLD_PEAK = 0.35; // bold: the stroke weight swells by this fraction (2 to 2.7)
+const BOLD_MAX = 1.8; // bold: the width scale never goes above this, so strokes do not merge (2 to 3.6)
+const BOLD_MIN = 0.5; // bold: the width scale never goes below this
+const CASCADE_ERASE = 0.12; // cascade: fraction of the timeline that takes the old ink away
+const CASCADE_KEEP = 0.15; // cascade: the share of every stroke that stays drawn at the turn from erase to redraw
+const CASCADE_STAGGER = 0.6; // cascade: fraction of the draw time spent on the stagger between strokes
+const POP_PEAK = 0.16; // pop: grows to about 1.18
+const SQUASH_Y = 0.2; // squash: scale Y 0.8
+const SQUASH_X = 0.12; // squash: scale X 1.12
+const SQUASH_IN = 0.25; // squash: fraction of the timeline of the squash
+const JUMP_UP = 2; // squat-jump: units up
+const JUMP_SQUASH_Y = 0.12; // squat-jump: landing squash, scale Y
+const JUMP_SQUASH_X = 0.08; // squat-jump: landing squash, scale X
+const BURST_BASE = 0.1; // burst: the center grows this much
+const BURST_SPREAD = 0.35; // burst: the far edge grows this much more
+const BURST_OUT = 0.3; // burst: fraction of the timeline on the way out
+const AJ_SQUAT = 0.12; // squat-jump: squat depth (scale Y)
+const AJ_SQUAT_END = 0.2; // squat-jump: the squat is full at this fraction
+const AJ_LAUNCH = 0.28; // squat-jump: the squat is gone at this fraction
+const AJ_AIR_FROM = 0.24;
+const AJ_AIR_TO = 0.62;
+const HOVER_ZETA = 0.7; // spring damping of the hover styles (bounce about 0.3)
+const HOVER_OMEGA = 14;
+
+// One out-and-back pulse from the engine spring: out over [0, h] (about 16% overshoot), back over [h, 1] with a
+// small rebound. Exactly 0 at t = 0 and t = 1.
+function alSpringEase(zeta, omega) {
+  const wd = omega * Math.sqrt(1 - zeta * zeta);
+  const k = (zeta * omega) / wd;
+  return (t) => (t <= 0 ? 0 : t >= 1 ? 1 : 1 - Math.exp(-zeta * omega * t) * (Math.cos(wd * t) + k * Math.sin(wd * t)));
+}
+const HOVER_SPRING = alSpringEase(HOVER_ZETA, HOVER_OMEGA);
+function alPulse(t, h = STYLE_OUT, sp = HOVER_SPRING) {
+  return t < h ? sp(t / h) : 1 - sp((t - h) / (1 - h));
+}
+const alSmooth = (u) => (u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u));
+
+function alDensify(P) {
+  const out = [];
+  const n = P.length / 2;
+  for (let k = 0; k < n; k++) {
+    if (k > 0) {
+      const x0 = P[2 * k - 2];
+      const y0 = P[2 * k - 1];
+      const x1 = P[2 * k];
+      const y1 = P[2 * k + 1];
+      const m = Math.ceil(Math.hypot(x1 - x0, y1 - y0) / STYLE_STEP);
+      for (let j = 1; j < m; j++) out.push(x0 + ((x1 - x0) * j) / m, y0 + ((y1 - y0) * j) / m);
+    }
+    out.push(P[2 * k], P[2 * k + 1]);
+  }
+  return Float64Array.from(out);
+}
+
+// The first fraction f of a polyline (by length). f >= 1 returns the polyline itself; nothing left returns an empty array.
+function alTrim(P, f) {
+  if (f >= 1) return P;
+  let L = 0;
+  for (let k = 2; k < P.length; k += 2) L += Math.hypot(P[k] - P[k - 2], P[k + 1] - P[k - 1]);
+  const target = f * L;
+  if (!(target > 1e-6)) return new Float64Array(0);
+  const out = [P[0], P[1]];
+  let acc = 0;
+  for (let k = 2; k < P.length; k += 2) {
+    const seg = Math.hypot(P[k] - P[k - 2], P[k + 1] - P[k - 1]);
+    if (acc + seg >= target) {
+      const u = seg > 1e-12 ? (target - acc) / seg : 0;
+      out.push(P[k - 2] + (P[k] - P[k - 2]) * u, P[k - 1] + (P[k + 1] - P[k - 1]) * u);
+      return Float64Array.from(out);
+    }
+    out.push(P[k], P[k + 1]);
+    acc += seg;
+  }
+  return Float64Array.from(out);
+}
+
+// Affine helpers on flat point arrays.
+function alAffine(P, out, bx, by, sx, sy, dx, dy, deg) {
+  const c = Math.cos(deg * ALIVE_DEG);
+  const s = Math.sin(deg * ALIVE_DEG);
+  for (let q = 0; q < P.length; q += 2) {
+    const x = (P[q] - bx) * sx;
+    const y = (P[q + 1] - by) * sy;
+    out[q] = bx + c * x - s * y + dx;
+    out[q + 1] = by + s * x + c * y + dy;
+  }
+}
+
+// The point warp of a style at time t with amplitude gain g. `ctx` holds the rest geometry.
+function alWarp(style, ctx, P, t, g) {
+  const out = new Float64Array(P.length);
+  const { cx, cy, R, bx, by, bw, bh, baseY } = ctx;
+  const sp = easings.bouncy;
+  switch (style) {
+    case 'p:squat-jump': {
+      let q0 = 0;
+      if (t < AJ_SQUAT_END) q0 = alSmooth(t / AJ_SQUAT_END);
+      else if (t < AJ_LAUNCH) q0 = 1 - alSmooth((t - AJ_SQUAT_END) / (AJ_LAUNCH - AJ_SQUAT_END));
+      let dy = 0;
+      let q1 = 0;
+      if (t >= AJ_AIR_FROM && t < AJ_AIR_TO) dy = -g * JUMP_UP * Math.sin((Math.PI * (t - AJ_AIR_FROM)) / (AJ_AIR_TO - AJ_AIR_FROM));
+      else if (t >= AJ_AIR_TO) {
+        const u = (t - AJ_AIR_TO) / (1 - AJ_AIR_TO);
+        q1 = alSmooth(u / 0.12) * (1 - sp(u));
+      }
+      const sy = 1 - g * (AJ_SQUAT * q0 + JUMP_SQUASH_Y * q1);
+      const sx = 1 + g * (0.08 * q0 + JUMP_SQUASH_X * q1);
+      for (let i = 0; i < P.length; i += 2) {
+        out[i] = bx + (P[i] - bx) * sx;
+        out[i + 1] = baseY + (P[i + 1] - baseY) * sy + dy;
+      }
+      break;
+    }
+    case 'p:pop': {
+      const k = 1 + g * POP_PEAK * alPulse(t, 0.3);
+      alAffine(P, out, bx, by, k, k, 0, 0, 0);
+      break;
+    }
+    case 'p:squash': {
+      const q = t < SQUASH_IN ? alSmooth(t / SQUASH_IN) : 1 - sp((t - SQUASH_IN) / (1 - SQUASH_IN));
+      for (let i = 0; i < P.length; i += 2) {
+        out[i] = bx + (P[i] - bx) * (1 + g * SQUASH_X * q);
+        out[i + 1] = baseY + (P[i + 1] - baseY) * (1 - g * SQUASH_Y * q);
+      }
+      break;
+    }
+    case 'p:burst': {
+      const pu = alPulse(t, BURST_OUT);
+      for (let q = 0; q < P.length; q += 2) {
+        const dx = P[q] - cx;
+        const dy = P[q + 1] - cy;
+        const f = Math.min(1, Math.hypot(dx, dy) / R);
+        const k = 1 + g * pu * (BURST_BASE + BURST_SPREAD * f);
+        out[q] = cx + dx * k;
+        out[q + 1] = cy + dy * k;
+      }
+      break;
+    }
+    case 'grow': {
+      const pu = alPulse(t);
+      for (let q = 0; q < P.length; q += 2) {
+        const dx = P[q] - cx;
+        const dy = P[q + 1] - cy;
+        const r = Math.hypot(dx, dy);
+        const f = Math.min(1, r / R);
+        const m = r > 1e-9 ? (g * SPREAD_UNITS * pu * f * f) / r : 0;
+        out[q] = P[q] + dx * m;
+        out[q + 1] = P[q + 1] + dy * m;
+      }
+      break;
+    }
+    default: {
+      // bend: offsets that follow a smooth sine of the position across the icon box, plus a later second harmonic.
+      const w1 = g * BEND_AMP * alPulse(t);
+      const w2 = g * BEND_AMP * BEND_WAVE * alPulse(alClamp((t - BEND_WAVE_LAG) / (1 - BEND_WAVE_LAG)));
+      const k = 1 + g * BEND_GROW * alPulse(t);
+      for (let q = 0; q < P.length; q += 2) {
+        const u = (P[q] - bx + bw / 2) / bw;
+        const v = (P[q + 1] - by + bh / 2) / bh;
+        const x = bx + (P[q] - bx) * k;
+        const y = by + (P[q + 1] - by) * k;
+        out[q] = x + w1 * Math.sin(Math.PI * v) + w2 * Math.sin(2 * Math.PI * v);
+        out[q + 1] = y + BEND_CROSS * (w1 * Math.sin(Math.PI * u) + w2 * Math.sin(2 * Math.PI * u));
+      }
+    }
+  }
+  return out;
+}
+
+const AFFINE_STYLES = new Set(['p:squash', 'p:pop', 'p:squat-jump']);
+
+// The motion of a hover or press style: { X(i, t) points of stroke i, W(t) width scale, dense(i) }. Identity at t = 0 and t = 1.
+function alStyleX(style, S, T, RP, strength, o = {}) {
+  const one = () => 1;
+  const phase = o.phase === 'down' ? 'down' : null;
+  const atRest = (t) => t <= 0 || t >= 1;
+  if (style === 'cascade') {
+    // Old ink goes away from the end back to the start, then the strokes draw again in rig order (body first, parts after).
+    const n = RP.length;
+    const E = CASCADE_ERASE;
+    const STAG = CASCADE_STAGGER;
+    // a part of every stroke stays drawn at the turn, so the icon is never empty
+    const low = Math.max(CASCADE_KEEP, 1 - Math.min(1, strength));
+    const win = (1 - E) * (1 - STAG);
+    const order = Array.from({ length: n }, (_, i) => i);
+    order.sort((a, b) => ((T[a] && T[a].level >= 0 ? T[a].level : 99) - (T[b] && T[b].level >= 0 ? T[b].level : 99)) || a - b);
+    const pos = new Array(n);
+    order.forEach((i, k) => (pos[i] = k));
+    const X = (i, t) => {
+      if (t <= 0 || t >= 1) return RP[i];
+      let f;
+      if (t < E) f = 1 - (1 - low) * easings.easeInOutCubic(t / E);
+      else {
+        const off = n > 1 ? ((1 - E) * STAG * pos[i]) / (n - 1) : 0;
+        f = low + (1 - low) * easings.easeOutCubic(alClamp((t - E - off) / win));
+      }
+      return alTrim(RP[i], f);
+    };
+    return { X, W: one, dense: null };
+  }
+  if (style === 'bold') {
+    // Bold holds: phase 'down' swells on a spring and stays swollen (frame 1 is the held weight). The way back is
+    // `retargetPlan(plan, t, true)`. With no phase the weight swells and returns (the whole run).
+    if (phase === 'down') {
+      return { dense: (i) => RP[i], X: (i) => RP[i], W: (t) => (t <= 0 ? 1 : Math.min(BOLD_MAX, 1 + strength * BOLD_PEAK * HOVER_SPRING(alClamp(t)))) };
+    }
+    return { dense: (i) => RP[i], X: (i) => RP[i], W: (t) => (t <= 0 || t >= 1 ? 1 : Math.min(BOLD_MAX, Math.max(BOLD_MIN, 1 + strength * BOLD_PEAK * alPulse(t, STYLE_OUT)))) };
+  }
+  const DP = AFFINE_STYLES.has(style) ? RP : RP.map((P) => alDensify(P));
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const P of RP) {
+    for (let k = 0; k < P.length; k += 2) {
+      x0 = Math.min(x0, P[k]); x1 = Math.max(x1, P[k]);
+      y0 = Math.min(y0, P[k + 1]); y1 = Math.max(y1, P[k + 1]);
+    }
+  }
+  const [cx, cy] = alCoreCenter(S, T);
+  let R = 1e-6;
+  for (const P of RP) for (let k = 0; k < P.length; k += 2) R = Math.max(R, Math.hypot(P[k] - cx, P[k + 1] - cy));
+  const limit = ALIVE_BOUND - STYLE_FIT_MARGIN;
+  const bx = (x0 + x1) / 2;
+  const by = (y0 + y1) / 2;
+  const ctx = { cx, cy, R, bx, by, bw: Math.max(1, x1 - x0), bh: Math.max(1, y1 - y0), baseY: y1 };
+  // R15-5: find the largest gain in [0, strength] that keeps every point within the bound at the sampled times.
+  const worst = (g) => {
+    let w = 0;
+    for (let s = 1; s < STYLE_FIT_TIMES; s++) {
+      const t = s / STYLE_FIT_TIMES;
+      for (const P of DP) {
+        const Q = alWarp(style, ctx, P, t, g);
+        for (let k = 0; k < Q.length; k++) w = Math.max(w, -Q[k], Q[k] - 24);
+      }
+    }
+    return w;
+  };
+  let gain = strength;
+  if (worst(gain) > limit) {
+    let lo = 0;
+    let hi = gain;
+    for (let it = 0; it < 8; it++) {
+      const mid = (lo + hi) / 2;
+      if (worst(mid) <= limit) lo = mid;
+      else hi = mid;
+    }
+    gain = lo;
+  }
+  return { X: (i, t) => (atRest(t) ? RP[i] : alWarp(style, ctx, DP[i], alClamp(t), gain)), W: one, dense: (i) => DP[i] };
+}
+
+// ---------------------------------------------------------------------------
+// `move`: the icon hangs from its top (a bell, a lamp) or stands on its base (a house, a trash can, a user) and sways
+// with the pointer. Each stroke moves rigidly about its own joint. A part rides its parent, and a stroke end that
+// touches another stroke is stitched to it, so no joint opens.
+// ---------------------------------------------------------------------------
+
+const RIG_STITCH_LEN = 3; // units: how far along a stroke a stitch correction reaches
+const RIG_FIT_TIMES = 64; // times sampled to fit the bound
+const RIG_FIT_MARGIN = 0.3; // units kept inside the bound: a spring can peak between two samples
+const RIG_JOINT_TOL = 0.05; // units: a stroke end this close to another stroke is a joint
+const HANG_PUSH_DEG = 18; // the first swing at full pointer speed (the plan without a live pointer)
+const HANG_CYCLES = 2.5; // swings over the run
+const HANG_DECAY = 3.2; // how fast the swings die (exp(-decay t))
+const HANG_DEFAULT_VELOCITY = { vx: 0.5, vy: 0 }; // when no pointer movement is known (keyboard, touch)
+const HF_FREQ = 2.2; // Hz of the sway spring
+const HF_ZETA = 0.32; // damping ratio (2 to 3 visible swings after the pointer leaves)
+const HF_RELEASE_DAMP = 1.45; // the damping is this many times higher after the pointer left
+const HF_VISIBLE = 0.05; // at rest when no point is more than this far (units) from its rest place
+const HF_MAX_DEG = 14; // the lean at full pointer speed
+const HF_KICK = 240; // degrees per second given by the first move at full speed
+const HF_SMOOTH = 0.1; // seconds of smoothing of the pointer velocity
+const HF_IDLE = 0.06; // seconds without a move before the input decays
+const HF_LAG_GAIN = 0.03; // a part trails its parent's turn rate by this (degrees per degree per second)
+const HF_EXTRA_MAX = 6; // the largest extra turn of a part, degrees
+const HF_STEP = 1 / 120; // seconds, the largest physics step
+
+// Where the icon hangs or stands: { x, y, kind: 'top' | 'base' | 'tip' }.
+function alHangPoint(DP) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const P of DP) {
+    for (let k = 0; k < P.length; k += 2) {
+      x0 = Math.min(x0, P[k]); x1 = Math.max(x1, P[k]);
+      y0 = Math.min(y0, P[k + 1]); y1 = Math.max(y1, P[k + 1]);
+    }
+  }
+  const H = Math.max(1e-6, y1 - y0);
+  const W = Math.max(1e-6, x1 - x0);
+  const band = (from, to) => {
+    let a = Infinity, b = -Infinity, sx = 0, c = 0;
+    for (const P of DP) {
+      for (let k = 0; k < P.length; k += 2) {
+        if (P[k + 1] >= from && P[k + 1] <= to) {
+          a = Math.min(a, P[k]); b = Math.max(b, P[k]); sx += P[k]; c++;
+        }
+      }
+    }
+    return c ? { w: b - a, x: sx / c } : { w: 0, x: (x0 + x1) / 2 };
+  };
+  const top = band(y0, y0 + 0.2 * H);
+  const bot = band(y1 - 0.12 * H, y1);
+  if (bot.w >= 0.6 * W) return { x: bot.x, y: y1, kind: 'base' };
+  const topX = band(y0, y0 + 0.06 * H).x;
+  if (top.w < 0.7 * W && Math.abs(topX - (x0 + x1) / 2) <= 0.15 * W) return { x: topX, y: y0, kind: 'top' };
+  return { x: band(y1 - 0.05 * H, y1).x, y: y1, kind: 'tip' };
+}
+
+// The motion of `move`. Returns { X, W, dense, live } like alStyleX. `live` drives `createSway`.
+function alMoveX(S, T, RP, strength, o) {
+  const n = S.length;
+  const DP = RP.map((P) => alDensify(P));
+  const wt = S.map((s) => s.length * (s.closed ? 1.5 : 1));
+  const role = S.map((s, i) => (T[i] ? T[i].role : 'core'));
+  const parent = S.map((s, i) => (T[i] && T[i].parent >= 0 ? T[i].parent : -1));
+  const isPart = (i) => role[i] === 'part' && parent[i] >= 0;
+  const level = S.map((s, i) => (isPart(i) ? Math.max(1, T[i].level) : 0));
+  const maxLevel = Math.max(0, ...level);
+  const cen = RP.map((P) => alCentroid(P));
+  const [, bcy] = alCoreCenter(S, T);
+  // The pivot of a part is its joint with its parent: its own end when it attaches with an end, else the contact point.
+  const pivot = S.map((s, i) => {
+    if (!isPart(i)) return cen[i];
+    const t = T[i];
+    if (t.attach === 'end' && !s.closed && (t.end === 0 || t.end === 1)) {
+      const P = RP[i];
+      return t.end === 0 ? [P[0], P[1]] : [P[P.length - 2], P[P.length - 1]];
+    }
+    if (t.contact) return [t.contact[0], t.contact[1]];
+    let best = null;
+    let bd = Infinity;
+    const Q = DP[parent[i]];
+    for (let k = 0; k < RP[i].length; k += 2) {
+      for (let m = 0; m < Q.length; m += 2) {
+        const d = Math.hypot(RP[i][k] - Q[m], RP[i][k + 1] - Q[m + 1]);
+        if (d < bd) {
+          bd = d;
+          best = [RP[i][k], RP[i][k + 1]];
+        }
+      }
+    }
+    return best || cen[i];
+  });
+  const hp = alHangPoint(DP);
+  const v = o.velocity && Number.isFinite(o.velocity.vx) ? o.velocity : HANG_DEFAULT_VELOCITY;
+  const speed = Math.min(1, Math.hypot(v.vx, v.vy || 0));
+  // sRight: +1 when a positive turn moves the middle of the body to the right (a body above the pivot), else -1
+  const sRight = bcy - hp.y <= 0 ? 1 : -1;
+  const dirSign = Math.abs(v.vx) < 0.05 ? 1 : Math.sign(v.vx);
+  const lateral = Math.abs(v.vx) < 0.05 ? 0.4 : 1; // a pointer that moves straight up or down brushes less
+  const amp = HANG_PUSH_DEG * Math.max(0.25, speed) * lateral * sRight * dirSign;
+  const env = (t) => Math.sin(2 * Math.PI * HANG_CYCLES * alClamp(t)) * Math.exp(-HANG_DECAY * alClamp(t)) * (1 - alClamp(t));
+  let G = 1;
+  // the local matrix of stroke i: the body turns about the hang point, a part rides its parent
+  let loc = (i, t) => (isPart(i) ? null : alRot(hp.x, hp.y, G * amp * env(t)));
+
+  // ---- joints to stitch: a stroke end that touches another stroke ----
+  const cl = DP.map((P) => {
+    const c = new Float64Array(P.length / 2);
+    for (let k = 1; k < c.length; k++) c[k] = c[k - 1] + Math.hypot(P[2 * k] - P[2 * k - 2], P[2 * k + 1] - P[2 * k - 1]);
+    return c;
+  });
+  const rank = (a, b) => level[a] - level[b] || wt[b] - wt[a] || a - b; // negative: a leads b
+  const joints = [];
+  for (let i = 0; i < n; i++) {
+    const P = DP[i];
+    if (P.length < 4) continue;
+    // A closed stroke has one joint point, its start (its last point repeats it).
+    const ends = S[i].closed ? [[0, P[0], P[1]]] : [[0, P[0], P[1]], [P.length / 2 - 1, P[P.length - 2], P[P.length - 1]]];
+    for (const [vi, px, py] of ends) {
+      for (let j = 0; j < n; j++) {
+        if (j === i || DP[j].length < 4) continue;
+        const Q = DP[j];
+        let best = Infinity;
+        let bs = 0;
+        let bf = 0;
+        for (let k = 0; k + 3 < Q.length; k += 2) {
+          const ax = Q[k], ay = Q[k + 1];
+          const dx = Q[k + 2] - ax, dy = Q[k + 3] - ay;
+          const l2 = dx * dx + dy * dy;
+          let f = l2 > 1e-12 ? ((px - ax) * dx + (py - ay) * dy) / l2 : 0;
+          f = Math.max(0, Math.min(1, f));
+          const d = Math.hypot(px - ax - f * dx, py - ay - f * dy);
+          if (d < best) { best = d; bs = k / 2; bf = f; }
+        }
+        if (best <= RIG_JOINT_TOL) {
+          // The end of i touches the point (bs, bf) of j. The follower is the stroke that ranks lower.
+          const iFollows = rank(i, j) > 0;
+          joints.push({ f: iFollows ? i : j, l: iFollows ? j : i, fEnd: iFollows ? vi : null, fSeg: iFollows ? 0 : bs, fFrac: iFollows ? 0 : bf, lEnd: iFollows ? null : vi, lSeg: iFollows ? bs : 0, lFrac: iFollows ? bf : 0 });
+        }
+      }
+    }
+  }
+  joints.sort((x, y) => rank(x.f, y.f)); // leaders are corrected before the strokes that follow them
+  const at = (P, vi, seg, frac) => {
+    if (vi !== null) return [P[2 * vi], P[2 * vi + 1]];
+    return [P[2 * seg] + (P[2 * seg + 2] - P[2 * seg]) * frac, P[2 * seg + 1] + (P[2 * seg + 3] - P[2 * seg + 1]) * frac];
+  };
+
+  // ---- the frame: world matrices, points, stitching ----
+  let cacheKey = NaN;
+  let cacheGain = NaN;
+  let cacheP = null;
+  const compute = (t, g) => {
+    if (t === cacheKey && g === cacheGain) return cacheP;
+    G = g;
+    const Wm = new Array(n);
+    const world = (i) => {
+      if (Wm[i]) return Wm[i];
+      const L = loc(i, t);
+      const p = isPart(i) ? parent[i] : -1;
+      let A;
+      if (p < 0) A = L || { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
+      else {
+        const Wp = world(p);
+        A = L ? alMul(Wp, L) : Wp;
+      }
+      Wm[i] = A;
+      return A;
+    };
+    const P = new Array(n);
+    for (let i = 0; i < n; i++) P[i] = alApply(world(i), DP[i]);
+    for (let pass = 0; pass < 6 && joints.length; pass++) {
+      for (const j of joints) {
+        const F = P[j.f];
+        const cur = at(F, j.fEnd, j.fSeg, j.fFrac);
+        const tgt = at(P[j.l], j.lEnd, j.lSeg, j.lFrac);
+        const dx = tgt[0] - cur[0];
+        const dy = tgt[1] - cur[1];
+        if (Math.abs(dx) + Math.abs(dy) < 1e-9) continue;
+        const c = cl[j.f];
+        const total = c[c.length - 1];
+        const LEN = Math.max(1e-6, Math.min(RIG_STITCH_LEN, 0.5 * total));
+        const sj = j.fEnd !== null ? c[j.fEnd] : c[j.fSeg] + (c[j.fSeg + 1] - c[j.fSeg]) * j.fFrac;
+        for (let k = 0; k < c.length; k++) {
+          let d = Math.abs(c[k] - sj);
+          if (S[j.f].closed) d = Math.min(d, total - d);
+          const w = alSmooth(1 - d / LEN);
+          if (w > 0) {
+            F[2 * k] += dx * w;
+            F[2 * k + 1] += dy * w;
+          }
+        }
+      }
+    }
+    cacheKey = t;
+    cacheGain = g;
+    cacheP = P;
+    return P;
+  };
+
+  // ---- the live frame: a turn about the hang point and an extra turn of each part depth, set by the sway physics ----
+  const state = { theta: 0, extra: new Array(maxLevel + 1).fill(0) };
+  let liveN = 0;
+  let swingOK = null;
+  let zeroStitch = null;
+  const run = (theta, extra) => {
+    state.theta = theta;
+    state.extra = extra;
+    const keep = loc;
+    loc = (i) => (isPart(i) ? (swingOK[i] ? alRot(pivot[i][0], pivot[i][1], state.extra[level[i]] || 0) : null) : alRot(hp.x, hp.y, state.theta));
+    const P = compute(-(++liveN), 1);
+    loc = keep;
+    return P;
+  };
+  const liveFrame = (theta, extra, wRest = 1) => {
+    if (!swingOK) {
+      // A part with more than one joint cannot turn alone: a second joint would open. It only rides its parent.
+      const cnt = new Array(n).fill(0);
+      for (const j of joints) {
+        cnt[j.f]++;
+        cnt[j.l]++;
+      }
+      swingOK = cnt.map((c, i) => c <= 1 && !(isPart(i) && T[i].attach === 'arch'));
+      // The stitch also closes the art's own small gaps at rest. That is taken out, so the rest pose is the true rest icon.
+      zeroStitch = run(0, new Array(extra.length).fill(0)).map((A, i) => Float64Array.from(A, (val, k) => val - DP[i][k]));
+    }
+    return run(theta, extra).map((A, i) => Float64Array.from(A, (val, k) => val - wRest * zeroStitch[i][k]));
+  };
+
+  // ---- the largest gain in [0, strength] that keeps every point of the plan inside the bound ----
+  const limit = ALIVE_BOUND - RIG_FIT_MARGIN;
+  const worst = (g) => {
+    let w = 0;
+    for (let s = 1; s < RIG_FIT_TIMES; s++) {
+      const P = compute(s / RIG_FIT_TIMES, g);
+      for (const A of P) for (let k = 0; k < A.length; k++) w = Math.max(w, -A[k], A[k] - 24);
+    }
+    return w;
+  };
+  let gain = strength;
+  if (worst(gain) > limit) {
+    let lo = 0;
+    let hi = gain;
+    for (let it = 0; it < 7; it++) {
+      const mid = (lo + hi) / 2;
+      if (worst(mid) <= limit) lo = mid;
+      else hi = mid;
+    }
+    gain = lo;
+  }
+  cacheKey = NaN;
+  // The largest turn about the pivot, either way, that keeps every point inside the bound (room is kept for the parts).
+  const lim = ALIVE_BOUND - RIG_FIT_MARGIN - 0.9;
+  const fits = (deg) => {
+    for (const sgn of [1, -1]) {
+      const c = Math.cos(deg * ALIVE_DEG);
+      const sn = Math.sin(sgn * deg * ALIVE_DEG);
+      for (const A of DP) {
+        for (let k = 0; k < A.length; k += 2) {
+          const x = hp.x + (A[k] - hp.x) * c - (A[k + 1] - hp.y) * sn;
+          const y = hp.y + (A[k] - hp.x) * sn + (A[k + 1] - hp.y) * c;
+          if (x < -lim || x > 24 + lim || y < -lim || y > 24 + lim) return false;
+        }
+      }
+    }
+    return true;
+  };
+  let lo = 0;
+  let hi = 40;
+  for (let it = 0; it < 8; it++) {
+    const mid = (lo + hi) / 2;
+    if (fits(mid)) lo = mid;
+    else hi = mid;
+  }
+  let rmax = 1e-6;
+  for (const A of DP) for (let k = 0; k < A.length; k += 2) rmax = Math.max(rmax, Math.hypot(A[k] - hp.x, A[k + 1] - hp.y));
+  const live = { frame: liveFrame, rest: RP, rmax, sRight, maxLevel, cap: lo / 1.6 };
+  return {
+    live,
+    X: (i, t) => (t <= 0 || t >= 1 ? RP[i] : compute(t, gain)[i]),
+    W: () => 1,
+    dense: (i) => DP[i],
+  };
+}
+
+function alPlanObject({ slots, n, strokeWidth, kind, X, Wf }) {
+  return {
+    kind,
+    slots,
+    turn: 0,
+    duration: 0,
+    strokeWidth,
+    linecap: 'round',
+    linejoin: 'round',
+    occlusion: 'none',
+    masks: false,
+    occludes: () => false,
+    twinOccludes: () => false,
+    X,
+    W: Wf,
+    frame(t) {
+      t = alClamp(t);
+      const res = [];
+      for (let i = 0; i < n; i++) {
+        const d = alD(X(i, t));
+        if (!d || d === 'M') continue;
+        const e = { d, opacity: 1, widthScale: Wf(t), key: i * 4, slot: i, depth: i, occluder: false };
+        res.push(e);
+      }
+      return res;
+    },
+    snapshot(t) {
+      t = alClamp(t);
+      const loops = [];
+      for (let i = 0; i < n; i++) {
+        const P = X(i, t);
+        if (P.length < 4) continue;
+        loops.push({ points: P, opacity: 1, widthScale: 1, vis: new Uint8Array(P.length / 2 - 1).fill(1) });
+      }
+      return { kind: 'snapshot', loops };
+    },
+  };
+}
+
+const RETARGET_BLEND = 0.35; // forward retarget: fraction of the run that blends the current pose into the plan
+
+/**
+ * Interruptible motion. A plan that starts at the pose `src` has at time `t`.
+ * - `toRest` true: from that pose back to the rest icon (a gentle spring; the pointer left). Frame 0 is the pose, frame 1 the rest icon.
+ * - `toRest` false: from that pose forward into the original plan (the pointer came back). Frame 1 is the end of the original plan.
+ * Needs a plan with `dense` (the styles except cascade). The result can be retargeted again.
+ * @param {Object} src A plan from `planAlive` or `planPress`, or a plan from `retargetPlan`.
+ * @param {number} t The time of `src` to start from (0 to 1).
+ * @param {boolean} toRest
+ */
+export function retargetPlan(src, t, toRest) {
+  if (!src || typeof src.dense !== 'function') return null;
+  const base = src.base || src;
+  const pose = [];
+  const A = (i) => pose[i] || (pose[i] = src.X(i, t));
+  const WA = src.W(t);
+  const lerp = (a, b, e) => {
+    if (a.length !== b.length) return b;
+    const out = new Float64Array(a.length);
+    for (let k = 0; k < a.length; k++) out[k] = a[k] + (b[k] - a[k]) * e;
+    return out;
+  };
+  const X = toRest
+    ? (i, u) => (u >= 1 ? src.rest(i) : lerp(A(i).length === src.dense(i).length ? A(i) : src.dense(i), src.dense(i), easings.gentle(u)))
+    : (i, u) => (u >= 1 ? base.X(i, 1) : lerp(A(i), base.X(i, Math.max(u, 1e-6)), alSmooth(u / RETARGET_BLEND)));
+  const Wf = toRest ? (u) => (u >= 1 ? 1 : WA + (1 - WA) * easings.gentle(u)) : (u) => WA + (base.W(u) - WA) * alSmooth(u / RETARGET_BLEND);
+  const plan = alPlanObject({ slots: src.slots, n: src.slots.length, strokeWidth: src.strokeWidth, kind: 'retarget', X, Wf });
+  plan.dense = src.dense;
+  plan.rest = src.rest;
+  plan.base = base;
+  plan.returning = !!toRest;
+  return plan;
+}
+
+/**
+ * A live sway for `hover="move"`. A small spring physics object that runs frame by frame, not on a fixed
+ * timeline. The icon turns about its hang or stand point (top for an icon that hangs, base for one that stands). The
+ * pointer's movement drives the turn: the angle follows `sRight * velocity * maxDeg` on a damped spring, parts trail
+ * their parent by depth, and after `release()` the sway rings down to rest.
+ *   const sw = createSway('bell', { strength: 1, duration: 900 });
+ *   sw.push(vx, vy);          // a kick (the pointer came in with this velocity, each -1..1)
+ *   sw.setInput(vx, vy);      // while the pointer is over the icon: its current velocity, -1..1
+ *   sw.release();             // the pointer left
+ *   sw.frame(now);            // advance the physics to `now` (ms) and return the entries to draw (like plan.frame)
+ *   sw.atRest;                // released and still: draw the rest icon
+ * @param {string|Array} name
+ * @param {{strength?: number, duration?: number}} [opts] `duration` (ms) scales the spring: 900 is the default feel.
+ */
+export function createSway(name, opts = {}) {
+  const plan = planAlive(name, { ...opts, style: 'move' });
+  const L = plan.live;
+  const strength = Number.isFinite(opts.strength) && opts.strength > 0 ? opts.strength : STRENGTH_DEFAULT;
+  const timeScale = Number.isFinite(opts.duration) && opts.duration > 0 ? 900 / opts.duration : 1;
+  const w0 = 2 * Math.PI * HF_FREQ * timeScale;
+  const K = w0 * w0;
+  const C = 2 * HF_ZETA * w0;
+  const wp = 2 * Math.PI * 3.2 * timeScale;
+  const Kp = wp * wp;
+  const Cp = 2 * 0.3 * wp;
+  const maxDeg = Math.min(HF_MAX_DEG * strength, L.cap);
+  const clamp1 = (v) => Math.max(-1, Math.min(1, Number.isFinite(v) ? v : 0));
+  const st = { th: 0, om: 0, vf: 0, inX: 0, idle: 0, released: false, last: null, ex: new Array(L.maxLevel + 1).fill(0), eo: new Array(L.maxLevel + 1).fill(0) };
+  const step = (dt) => {
+    st.idle += dt;
+    if (st.idle > HF_IDLE) st.inX *= Math.exp(-dt / 0.08);
+    st.vf += (st.inX - st.vf) * (1 - Math.exp(-dt / HF_SMOOTH));
+    const target = L.sRight * st.vf * maxDeg;
+    // After the pointer leaves the sway rings down with more damping, so it settles in about a second.
+    st.om += (K * (target - st.th) - (st.released ? C * HF_RELEASE_DAMP : C) * st.om) * dt;
+    st.th += st.om * dt;
+    const lim = maxDeg * 1.6;
+    if (Math.abs(st.th) > lim) {
+      st.th = Math.sign(st.th) * lim;
+      st.om = 0;
+    }
+    for (let l = 1; l <= L.maxLevel; l++) {
+      const T = -HF_LAG_GAIN * st.om * (1 + 0.3 * (l - 1)) * strength;
+      st.eo[l] += (Kp * (T - st.ex[l]) - Cp * st.eo[l]) * dt;
+      st.ex[l] += st.eo[l] * dt;
+      st.ex[l] = Math.max(-HF_EXTRA_MAX, Math.min(HF_EXTRA_MAX, st.ex[l]));
+    }
+  };
+  const entriesOf = (P) => {
+    const res = [];
+    for (let i = 0; i < P.length; i++) {
+      const d = alD(P[i]);
+      if (!d || d === 'M') continue;
+      const e = { d, opacity: 1, widthScale: 1, key: i * 4, slot: i, depth: i, occluder: false };
+      res.push(e);
+    }
+    return res;
+  };
+  return {
+    kind: 'sway',
+    slots: plan.slots,
+    strokeWidth: plan.strokeWidth,
+    linecap: 'round',
+    linejoin: 'round',
+    occlusion: 'none',
+    masks: false,
+    occludes: () => false,
+    twinOccludes: () => false,
+    push(vx) {
+      st.om += L.sRight * clamp1(vx) * HF_KICK * strength * timeScale;
+      st.released = false;
+    },
+    setInput(vx) {
+      st.inX = clamp1(vx);
+      st.idle = 0;
+      st.released = false;
+    },
+    release() {
+      st.inX = 0;
+      st.released = true;
+    },
+    get released() {
+      return st.released;
+    },
+    get atRest() {
+      // The size of the swing left: the angle and the angle the speed would reach. At rest when that is under 0.05 units at the far ink.
+      const left = Math.hypot(st.th, st.om / w0) * ALIVE_DEG * L.rmax;
+      return st.released && left < HF_VISIBLE && Math.abs(st.vf) < 0.01 && st.ex.every((e, l) => Math.abs(e) * ALIVE_DEG * L.rmax < HF_VISIBLE && Math.abs(st.eo[l] / wp) * ALIVE_DEG * L.rmax < HF_VISIBLE);
+    },
+    /** The angle now, in degrees (for tests). */
+    get angle() {
+      return st.th;
+    },
+    frame(now) {
+      if (st.last === null) st.last = now;
+      let dt = Math.min(Math.max(0, now - st.last), 50) / 1000;
+      st.last = now;
+      while (dt > 1e-9) {
+        const h = Math.min(HF_STEP, dt);
+        step(h);
+        dt -= h;
+      }
+      // Near rest the stitch's small gap-closing is taken out (weight 1 at rest, 0 once the swing is 0.12 units or more).
+      const left = Math.hypot(st.th, st.om / w0) * ALIVE_DEG * L.rmax;
+      return entriesOf(L.frame(st.th, st.ex.slice(), 1 - alSmooth(left / 0.12)));
+    },
+    /** The rest icon, as entries (frame at rest). */
+    rest() {
+      return entriesOf(L.rest); // the true rest strokes
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// A click that changes the icon. `planPress(name, { style, to })` plays the press style while the icon
+// morphs from `name` to `to` inside it. The morph is the real morph plan (planMorph, spring). The press motion is applied
+// to the points of each morph frame, so one plan returns the combined frames. frame(0) is the old rest icon and frame(1)
+// the new rest icon (they are the morph plan's own first and last frames). The morph runs in a window of the press:
+// - squash: through the squash and the spring back
+// - squat-jump: in the air, from take-off to landing
+// - burst: around the peak, the parts are out as the old icon and snap back in as the new one
+// ---------------------------------------------------------------------------
+
+/** Default run time in ms of a click that changes the icon. Other styles: 500 ms. */
+const PRESS_TO_MS = Object.freeze({ squash: 450, 'squat-jump': 650, burst: 600 });
+/** The default run time in ms of a press that changes the icon. */
+export const pressToMs = (style) => PRESS_TO_MS[resolvePress(style)] || 500;
+// The window of the press timeline (0..1) in which the morph runs.
+const PRESS_TO_WINDOW = { squash: [0.1, 0.9], 'squat-jump': [AJ_AIR_FROM, AJ_AIR_TO], burst: [0.2, 0.45] };
+
+function alPressCtx(names) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  let cx = 0;
+  let cy = 0;
+  const all = [];
+  for (const nm of names) {
+    const S = iconToStrokes(nm);
+    const c = alCoreCenter(S, S.tree || []);
+    cx += c[0] / names.length;
+    cy += c[1] / names.length;
+    for (const st of S) {
+      for (let k = 0; k < st.pts.length; k += 2) {
+        all.push(st.pts[k], st.pts[k + 1]);
+        x0 = Math.min(x0, st.pts[k]); x1 = Math.max(x1, st.pts[k]);
+        y0 = Math.min(y0, st.pts[k + 1]); y1 = Math.max(y1, st.pts[k + 1]);
+      }
+    }
+  }
+  let R = 1e-6;
+  const bx = (x0 + x1) / 2;
+  const by = (y0 + y1) / 2;
+  for (let k = 0; k < all.length; k += 2) R = Math.max(R, Math.hypot(all[k] - cx, all[k + 1] - cy));
+  return { cx, cy, R, bx, by, bw: Math.max(1, x1 - x0), bh: Math.max(1, y1 - y0), baseY: y1 };
+}
+
+function planPressTo(name, to, opts) {
+  const style = isPressStyle(opts.style) ? resolvePress(opts.style) : 'squash';
+  const key = 'p:' + style;
+  const strength = Number.isFinite(opts.strength) && opts.strength > 0 ? opts.strength : STRENGTH_DEFAULT;
+  const fromT = Number.isFinite(opts.fromT) ? alClamp(opts.fromT) : 0;
+  const morph = planMorph(name, to, { easing: 'spring', ...opts, style: undefined, to: undefined, strength: undefined, fromT: undefined });
+  const ctx = alPressCtx([name, to]);
+  const win = PRESS_TO_WINDOW[style] || [0.15, 0.7];
+  const ws = Math.max(win[0], fromT);
+  const we = Math.min(1, Math.max(win[1], ws + 0.25));
+  // u: the plan time 0..1. The press time runs from fromT to 1. The morph time is its window.
+  const pressT = (u) => fromT + (1 - fromT) * u;
+  const morphT = (t) => alClamp((t - ws) / (we - ws));
+  const dOf = (P) => alD(P);
+  // A morph path can hold several pieces (M x y x y ... M x y ...): each piece is warped alone.
+  const warpD = (d, t, g) =>
+    d
+      .split('M')
+      .filter((seg) => seg.trim())
+      .map((seg) => dOf(alWarp(key, ctx, Float64Array.from(seg.trim().split(/\s+/).map(Number)), t, g)))
+      .join('');
+  const frameAt = (u, g) => {
+    const t = pressT(u);
+    const entries = morph.frame(morphT(t));
+    const res = [];
+    for (const e of entries) {
+      if (!e.d || e.d === 'M') continue;
+      res.push({ ...e, d: warpD(e.d, t, g) });
+    }
+    return res;
+  };
+  // R15-5: the largest gain that keeps the combined frames inside the bound.
+  const limit = ALIVE_BOUND - RIG_FIT_MARGIN; // the morph and the press peak at different times, so keep room between samples
+  const worst = (g) => {
+    let w = 0;
+    for (let q = 1; q < 100; q++) for (const e of frameAt(q / 100, g)) for (const v of e.d.replace(/M/g, ' ').trim().split(/\s+/)) w = Math.max(w, -v, v - 24);
+    return w;
+  };
+  let gain = strength;
+  if (worst(gain) > limit) {
+    let lo = 0;
+    let hi = gain;
+    for (let it = 0; it < 6; it++) {
+      const mid = (lo + hi) / 2;
+      if (worst(mid) <= limit) lo = mid;
+      else hi = mid;
+    }
+    gain = lo;
+  }
+  const plan = Object.create(morph);
+  plan.kind = 'press-to';
+  plan.pressWindow = { ws, we, fromT }; // the part of the plan before ws shows the old icon, after we the new icon
+  plan.frame = (u) => {
+    u = alClamp(u);
+    if (u >= 1) return morph.frame(1);
+    if (u <= 0 && fromT === 0) return morph.frame(0);
+    return frameAt(u, gain);
+  };
+  plan.snapshot = (u) => {
+    u = alClamp(u);
+    const t = pressT(u);
+    const snap = morph.snapshot(morphT(t));
+    const loops = snap.loops.map((L) => ({ ...L, points: u >= 1 ? L.points : alWarp(key, ctx, L.points, t, gain) }));
+    return { ...snap, loops };
+  };
+  return plan;
+}
+
+/**
+ * A press plan. Same as `planAlive(name, { style })` with a press style (`PRESS_STYLES`). Default style: pop.
+ * With `to` (another icon name) the icon morphs from `name` to `to` inside the press (see above); `fromT` (0 to 1) starts
+ * the press at that phase, for a name change during a press that is already running.
+ * @param {string|Array} name
+ * @param {Object} [opts] `style`, `to`, `fromT`, `strength` (default 1.5), and the core knobs.
+ */
+export function planPress(name, opts = {}) {
+  if (typeof opts.to === 'string' && opts.to && opts.to !== name) return planPressTo(name, opts.to, opts);
+  return planAlive(name, { ...opts, click: true, style: isPressStyle(opts.style) ? resolvePress(opts.style) : 'pop' });
+}
+
 /**
  * R15-1/R15-2: a one-shot "alive" plan for hover. The plan draws the icon at frame(0) and frame(1) exactly and a
  * short life wiggle in between. It never changes the icon.
@@ -476,7 +1367,7 @@ function alStrokeWidth(name) {
  * - swing: a body with a long part at one end swings like a pendulum on a spring.
  * - pop (fallback): the whole icon dips, springs, and tilts.
  * @param {string|Array} name An icon name or an icon node.
- * @param {Object} [opts] Core knobs (`cornerAngle`, `chainGap`, `chainAngle`) are honored.
+ * @param {Object} [opts] Core knobs (`cornerAngle`, `chainGap`, `chainAngle`) are honored. `style`: one of `HOVER_STYLES` to use that hover style instead of the rig-picked wiggle.
  * @returns {{kind: string, frame: Function, snapshot: Function, slots: Array, occludes: Function, occlusion: string, turn: number, duration: number, strokeWidth: number, linecap: string, linejoin: string}}
  */
 export function planAlive(name, opts = {}) {
@@ -484,7 +1375,12 @@ export function planAlive(name, opts = {}) {
   const S = iconToStrokes(name, o.cornerAngle, o.chainGap, o.chainAngle);
   if (!S || !S.length) throw new Error('planAlive: no strokes for the icon.');
   const T = S.tree || [];
-  const kind = classifyAlive(S, T);
+  const style = opts.click === true ? (isPressStyle(opts.style) ? 'p:' + resolvePress(opts.style) : null) : PLAN_HOVER.includes(resolveHover(opts.style)) ? resolveHover(opts.style) : null;
+  const strength = Number.isFinite(opts.strength) && opts.strength > 0 ? opts.strength : STRENGTH_DEFAULT;
+  let Wf = () => 1;
+  let denseOf = null;
+  let liveInfo = null;
+  const kind = style ? { kind: style } : classifyAlive(S, T);
 
   // The rest polyline of each stroke. A closed stroke repeats its first point, so the drawn path closes.
   const RP = S.map((s) => {
@@ -501,7 +1397,13 @@ export function planAlive(name, opts = {}) {
 
   // `X(i, t)` returns the points of stroke i at time t. Built per behavior; identity at t = 0 and t = 1.
   let X;
-  if (kind.kind === 'radiate') {
+  if (style) {
+    const sx = style === 'move' ? alMoveX(S, T, RP, strength, opts) : alStyleX(style, S, T, RP, strength, opts);
+    liveInfo = sx.live || null;
+    X = sx.X;
+    Wf = sx.W;
+    denseOf = sx.dense;
+  } else if (kind.kind === 'radiate') {
     const C = kind.center;
     const spokes = kind.spokes;
     const spokeSet = new Set(spokes.map((sp) => sp.i));
@@ -653,38 +1555,42 @@ export function planAlive(name, opts = {}) {
     rank: i / Math.max(1, S.length - 1),
   }));
 
-  const plan = {
-    kind: kind.kind,
-    slots,
-    turn: 0,
-    duration: 0,
-    strokeWidth: alStrokeWidth(name),
-    linecap: 'round',
-    linejoin: 'round',
-    occlusion: 'none',
-    masks: false,
-    occludes: () => false,
-    twinOccludes: () => false,
-    frame(t) {
-      t = alClamp(t);
-      const res = [];
-      for (let i = 0; i < S.length; i++) {
-        const d = alD(X(i, t));
-        if (!d || d === 'M') continue;
-        res.push({ d, opacity: 1, widthScale: 1, key: i * 4, slot: i, depth: i, occluder: false });
+  if (!style && Math.abs(strength - 1) > 1e-9) {
+    // wiggle: the strength scales how far each point goes from its rest place; the bound still holds.
+    const X0 = X;
+    const wob = (g) => (i, t) => {
+      const P = X0(i, t);
+      if (t <= 0 || t >= 1) return P;
+      const out = new Float64Array(P.length);
+      for (let k = 0; k < P.length; k++) out[k] = RP[i][k] + g * (P[k] - RP[i][k]);
+      return out;
+    };
+    const limit = ALIVE_BOUND - STYLE_FIT_MARGIN;
+    const worst = (g) => {
+      const f = wob(g);
+      let w = 0;
+      for (let q = 1; q < STYLE_FIT_TIMES; q++) for (let i = 0; i < S.length; i++) for (const v of f(i, q / STYLE_FIT_TIMES)) w = Math.max(w, -v, v - 24);
+      return w;
+    };
+    let g = strength;
+    if (worst(g) > limit) {
+      let lo = 0;
+      let hi = g;
+      for (let it = 0; it < 8; it++) {
+        const mid = (lo + hi) / 2;
+        if (worst(mid) <= limit) lo = mid;
+        else hi = mid;
       }
-      return res;
-    },
-    snapshot(t) {
-      t = alClamp(t);
-      const loops = [];
-      for (let i = 0; i < S.length; i++) {
-        const P = X(i, t);
-        if (P.length < 4) continue;
-        loops.push({ points: P, opacity: 1, widthScale: 1, vis: new Uint8Array(P.length / 2 - 1).fill(1) });
-      }
-      return { kind: 'snapshot', loops };
-    },
-  };
+      g = lo;
+    }
+    X = wob(g);
+  }
+  const plan = alPlanObject({ slots, n: S.length, strokeWidth: alStrokeWidth(name), kind: kind.kind, X, Wf });
+  plan.live = liveInfo;
+  if (style && denseOf) {
+    // Interruptible: `retargetPlan` can start from any frame of this plan.
+    plan.dense = denseOf;
+    plan.rest = (i) => RP[i];
+  }
   return plan;
 }

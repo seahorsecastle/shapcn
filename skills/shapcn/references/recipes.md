@@ -123,12 +123,30 @@ The icon is not announced by itself. The `role="status"` text is the accessible 
 
 Here the label stays "Show password" and `aria-pressed` carries the state.
 
-## Hover life animation
+## Hover animation
 
 ```html
 <button type="button" aria-label="Notifications">
-  <morph-icon name="bell" hover="alive" aria-hidden="true"></morph-icon>
+  <morph-icon name="bell" hover="grow" aria-hidden="true"></morph-icon>
 </button>
 ```
 
-The icon plays a short animation on hover and on keyboard focus, then rests. Use it on icon buttons that do not change icon.
+The icon plays a short animation on hover and on keyboard focus, then rests. Use it on icon buttons that do not change icon. Styles: `wiggle`, `grow`, `bend`, `bold`, `cascade`, `move`. For a nav bar, `grow` reads well at 24 px.
+
+## Press animation, and a press that changes the icon
+
+```html
+<button type="button" aria-label="Follow" id="f">
+  <morph-icon name="user-plus" press="squat-jump" aria-hidden="true"></morph-icon>
+</button>
+<script>
+  let on = false;
+  document.getElementById('f').addEventListener('click', (e) => {
+    on = !on;
+    e.currentTarget.querySelector('morph-icon').pressTo(on ? 'user-check' : 'user-plus');
+    e.currentTarget.setAttribute('aria-label', on ? 'Following' : 'Follow');
+  });
+</script>
+```
+
+Press styles: `pop`, `squash`, `squat-jump`, `burst`. `burst` with trash to check suits a delete button.

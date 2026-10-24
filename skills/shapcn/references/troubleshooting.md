@@ -27,9 +27,10 @@ The package is ES modules only. Use `import`. In Node, `require('shape-aware-mor
 - The name did not change (same name resolves at once).
 - An icon in a stroke family morphs to an icon in a fill family: this is a short two-part sequence, not a shape morph.
 
-## `hover="alive"` does nothing
+## `hover` or `press` does nothing
 - Reduced motion is on, or the icon is empty/hidden, or another animation is running. This is by design.
-- The attribute value must be exactly `alive`.
+- The attribute value must be one of `wiggle`, `grow`, `bend`, `bold`, `cascade`, `move` (hover) or `pop`, `squash`, `squat-jump`, `burst` (press). `alive` still works and means `wiggle`.
+- The script is older than 0.2.0. Older versions know only `hover="alive"`.
 
 ## Wrong color or size
 - Color: the stroke is `currentColor`. Set CSS `color` on the parent, or the `color` attribute.

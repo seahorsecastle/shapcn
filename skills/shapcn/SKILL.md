@@ -1,6 +1,6 @@
 ---
 name: shapcn
-description: Add morphing icons to a web project with shapcn (the <morph-icon> custom element, npm package shape-aware-morph). Use this skill whenever the user wants an icon to animate into another icon, for example play to pause, copy to check, sun to moon, eye to eye-off, menu to close, or upload to check. Also use it for "morph icon", "animated icon swap", "icon transition", "shapcn", "shape-aware-morph", "morph-icon", Lucide, Tabler, Phosphor, Remix or Hugeicons icons that must change shape, and for icons that react on hover. Use it even when the user does not name the library but asks for smooth icon state changes in HTML, React, Vue or Svelte.
+description: Add morphing icons to a web project with shapcn (the <morph-icon> custom element, npm package shape-aware-morph). Use this skill whenever the user wants an icon to animate into another icon, for example play to pause, copy to check, sun to moon, eye to eye-off, menu to close, or upload to check. Also use it for "morph icon", "animated icon swap", "icon transition", "shapcn", "shape-aware-morph", "morph-icon", Lucide, Tabler, Phosphor, Remix or Hugeicons icons that must change shape, and for icons that react on hover or on click (hover and press styles). Use it even when the user does not name the library but asks for smooth icon state changes in HTML, React, Vue or Svelte.
 ---
 
 # shapcn: morphing icons
@@ -14,7 +14,7 @@ Do not invent options. Use only the attributes and methods in this skill and its
 1. Pick the install path (see below).
 2. Add `<morph-icon name="...">` inside the control (usually a `<button>`).
 3. Change the `name` attribute (or call `morphTo`) when the state changes.
-4. Set `easing`, `duration`, `hover`, or `effect` only when the user asks for a feel.
+4. Set `easing`, `duration`, `hover`, `press`, or `effect` only when the user asks for a feel.
 5. Add the accessible name on the button, not on the icon. See "Accessibility".
 
 ## Install path
@@ -66,9 +66,12 @@ Use the script tag also for plain HTML, prototypes, and CMS pages, even after pu
 | `easing` | `easeInOutCubic` | `smooth`, `spring`, `elastic` are the three feels to offer. Also valid: `linear`, `easeInOutCubic`, `easeOutCubic`, `gentle`. |
 | `stagger` | `0` | 0 to 0.99. |
 | `effect` | `implode` (hide), `expand` (show) | `implode`, `explode`, `assemble`, `draw`, `erase`, `scale`, `expand`. |
-| `hover` | none | `alive` plays a 600 ms life animation on pointer enter and on focus. The icon name does not change. |
+| `hover` | none | A hover style: `wiggle`, `grow`, `bend`, `bold`, `cascade`, `move`. Plays on pointer enter and on focus. The icon name does not change. `alive` is the old name of `wiggle`. |
+| `press` | none | A press style: `pop`, `squash`, `squat-jump`, `burst`. Plays on click, tap, Enter and Space. |
+| `hover-strength`, `press-strength` | `1.5` | 0.5 to 3. |
+| `hover-duration`, `press-duration` | the style's own | Milliseconds. |
 
-Methods (each returns a Promise): `morphTo(name)`, `hide()`, `show(name)`, `playAlive()`. Full details: `references/attributes-and-api.md`.
+Methods (each returns a Promise): `morphTo(name)`, `hide()`, `show(name)`, `playAlive()`, `playPress()`, `pressTo(name)`. Full details: `references/attributes-and-api.md`.
 
 ## Picking a feel
 
@@ -77,6 +80,27 @@ Methods (each returns a Promise): `morphTo(name)`, `hide()`, `show(name)`, `play
 - `easing="spring"`: a small overshoot, one wobble. Good for toggles.
 - `easing="elastic"`: a large overshoot. Use it for playful UI only.
 - `duration`: 300 to 450 for small controls. Do not go below 200.
+
+## Hover and press
+
+- `hover` styles: `wiggle` (the motion the icon's rig picks), `grow`, `bend`, `bold` (stays bold while hovered), `cascade`, `move` (sways with the pointer).
+- `press` styles: `pop`, `squash`, `squat-jump`, `burst`.
+- Use these names only. Other names do nothing (the wiggle plays).
+- Put the icon inside a `<button>` or `<a>`. The hover plays when the pointer enters the button and when the button gets focus.
+- A press that changes the icon: add `press="burst"` and call `icon.pressTo('check')`. Setting `name` while a press runs does the same. Use it for delete to done, follow to following.
+- On a touch screen a tap plays the hover once.
+- Do not put `hover` or `press` on an icon that also changes on every pointer enter. Pick one job per control.
+
+```html
+<button type="button" aria-label="Delete">
+  <morph-icon name="trash" press="burst" aria-hidden="true"></morph-icon>
+</button>
+<script>
+  document.currentScript.previousElementSibling.addEventListener('click', (e) => {
+    e.currentTarget.querySelector('morph-icon').pressTo('check');
+  });
+</script>
+```
 
 ## Show and hide
 
@@ -90,8 +114,8 @@ The element does not set ARIA attributes. You must do it.
 - Mark the icon decorative when the button has a label: `aria-hidden="true"` on `<morph-icon>`.
 - Use a real `<button type="button">`. Do not click-handle a `<div>`.
 - For a status that appears (upload done), put text in a live region (`role="status"`). The icon alone is not announced.
-- Reduced motion: when the user sets `prefers-reduced-motion: reduce`, icons change at once with no animation, and `hover="alive"` does nothing. This is the default. Do not turn it off. (`respectReducedMotion: false` exists in the JS class only. Do not use it.)
-- `hover="alive"` also runs on keyboard focus of the nearest button or link, so keyboard users get the same feedback.
+- Reduced motion: when the user sets `prefers-reduced-motion: reduce`, icons change at once with no animation, and `hover` and `press` do nothing. This is the default. Do not turn it off. (`respectReducedMotion: false` exists in the JS class only. Do not use it.)
+- `hover` also runs on keyboard focus of the nearest button or link, and `press` runs on Enter and Space, so keyboard users get the same feedback.
 
 ## Frameworks
 

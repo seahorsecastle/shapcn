@@ -14,7 +14,7 @@ npm i shape-aware-morph
 
 The package is ES modules only. In Node, `require('shape-aware-morph')` works only on Node 22.12 or newer. Use `import` on older versions.
 
-The core has no icon data. You import only the icons you use (see "Pick your icons"). The core alone is about 181 kB minified (70 kB gzipped). Each icon adds a few hundred bytes.
+The core has no icon data. You import only the icons you use (see "Pick your icons"). The core alone is about 202 kB minified (78 kB gzipped). Each icon adds a few hundred bytes.
 
 ## Use it
 
@@ -38,14 +38,14 @@ document.querySelector('morph-icon').setAttribute('name', 'mic-off');
 One file. It loads the Lucide icons and defines `<morph-icon>` for you.
 
 ```html
-<script src="https://unpkg.com/shape-aware-morph@0.1.0"></script>
+<script src="https://unpkg.com/shape-aware-morph@0.2.0"></script>
 <morph-icon name="mic"></morph-icon>
 <script>
   document.querySelector('morph-icon').setAttribute('name', 'mic-off');
 </script>
 ```
 
-jsDelivr works too: `https://cdn.jsdelivr.net/npm/shape-aware-morph@0.1.0`. The script also sets `window.shapcn` with the API.
+jsDelivr works too: `https://cdn.jsdelivr.net/npm/shape-aware-morph@0.2.0`. The script also sets `window.shapcn` with the API.
 
 ### React
 
@@ -138,12 +138,44 @@ Change `name` and the icon morphs. Change any other attribute and the element up
 | `easing` | `easeInOutCubic` | One of `linear`, `easeInOutCubic`, `easeOutCubic`, `smooth`, `spring`, `elastic`, `gentle`. |
 | `stagger` | `0` | Spreads the start of the strokes over part of the time. A number from 0 to 0.99. |
 | `effect` | `implode` to hide, `expand` to show | The effect for hide and show: `implode`, `explode`, `assemble`, `draw`, `erase`, `scale`, `expand`. |
-| `hover` | none | Set `alive` to play a short life animation on pointer enter and on keyboard focus. It lasts 600 ms. |
+| `hover` | none | A hover style: `wiggle`, `grow`, `bend`, `bold`, `cascade` or `move`. Plays on pointer enter and on keyboard focus. `alive` is the old name of `wiggle`. See "Hover and press". |
+| `press` | none | A press style: `pop`, `squash`, `squat-jump` or `burst`. Plays on click, tap, Enter and Space. |
+| `hover-strength`, `press-strength` | `1.5` | How far the motion goes. A number from 0.5 to 3. |
+| `hover-duration`, `press-duration` | the style's own | Milliseconds. |
 
-The element also has the methods `morphTo(name)`, `hide()`, `show(name)` and `playAlive()`. Each returns a Promise. The Promise gives `true` when the animation ends, or when the icon changes at once with no animation (same name, or reduced motion for `morphTo`, `hide` and `show`). The Promise gives `false` in these cases:
+The element also has the methods `morphTo(name)`, `hide()`, `show(name)`, `playAlive()`, `playPress()` and `pressTo(name)`. Each returns a Promise. The Promise gives `true` when the animation ends, or when the icon changes at once with no animation (same name, or reduced motion for `morphTo`, `hide` and `show`). The Promise gives `false` in these cases:
 
 - A new `morphTo`, `hide`, `show` or `playAlive` call that starts an animation interrupts the running animation. The interrupted call resolves `false`.
 - `playAlive()` does not play, because the icon is empty or hidden, reduced motion is on, an animation is already running (a morph or an alive run), or the alive duration is 0 or less.
+
+## Hover and press
+
+Icons can react to the pointer. Set `hover` for the pointer and `press` for the click. Both work on any icon of any family, and an icon always ends where it began.
+
+| Attribute | Values | Default time |
+| --- | --- | --- |
+| `hover` | `wiggle` (the motion the rig picks for the icon), `grow`, `bend`, `bold` (stays bold while hovered), `cascade`, `move` (sways with the pointer) | 600, 400, 400, 250, 500, 900 ms |
+| `press` | `pop`, `squash`, `squat-jump`, `burst` | 300, 300, 500, 500 ms |
+| `hover-strength`, `press-strength` | 0.5 to 3 | 1.5 |
+| `hover-duration`, `press-duration` | milliseconds | the style's own |
+
+```html
+<button><morph-icon name="bell" hover="grow"></morph-icon></button>
+<morph-icon name="trash" press="burst" hover-strength="2"></morph-icon>
+```
+
+A press can also change the icon. The new icon morphs while the press plays:
+
+```js
+const el = document.querySelector('morph-icon[press]');
+el.pressTo('circle-check');        // or: el.setAttribute('name', 'circle-check') while the press runs
+```
+
+Without the element: `planAlive(name, { style: 'grow' })`, `planPress(name, { style: 'burst', to: 'check' })` and `createSway(name)` (the live sway of `move`). Each plan has `frame(t)` like `planMorph`. At `t = 0` and `t = 1` the plan draws the rest icon. No point goes more than 3 units outside the 24 box, the stroke width never changes, and nothing fades.
+
+`alive` is the old name of `wiggle`. Its default strength is now 1.5 (in 0.1.0 it was 1). Set `hover-strength="1"` for the old size.
+
+On a touch screen a tap plays the hover style once. With `prefers-reduced-motion: reduce`, hover and press do nothing, and a press that changes the icon changes it at once.
 
 ## JavaScript API
 
@@ -157,11 +189,11 @@ const entries = plan.frame(0.5);   // drawing entries at the middle of the morph
 
 `frame(t)` takes a time from 0 to 1. The plan does not touch the DOM. The package also exports internal helpers. Only the functions listed here are stable.
 
-Other exports: `planAlive`, `alive`, `planEffect`, `MorphIcon`, `getIconNames`, `iconToSVG`, `registerIcons`, `registerFamilyFile`, `registerFamilyIcons`, `registerSVGs`, `DEFAULTS`, `easings`.
+Other exports: `planAlive`, `planPress`, `createSway`, `retargetPlan`, `HOVER_STYLES`, `PRESS_STYLES`, `alive`, `planEffect`, `MorphIcon`, `getIconNames`, `iconToSVG`, `registerIcons`, `registerFamilyFile`, `registerFamilyIcons`, `registerSVGs`, `DEFAULTS`, `easings`.
 
 ## Reduced motion
 
-When the user sets `prefers-reduced-motion: reduce`, icons change at once with no animation, and `hover="alive"` does nothing. To turn this off, pass `respectReducedMotion: false` to `MorphIcon`.
+When the user sets `prefers-reduced-motion: reduce`, icons change at once with no animation, and `hover` and `press` do nothing. To turn this off, pass `respectReducedMotion: false` to `MorphIcon`.
 
 ## Icon families
 

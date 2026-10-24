@@ -21,7 +21,7 @@ npm test
 
 The generated icon modules and `dist/` are not in git. Do not edit them by hand. Change the engine files or the data, then build again.
 
-`npm test` runs the tests in `package/test/`. They need only the `package/` folder and take a few seconds.
+`npm test` runs the tests in `package/test/`. They need only the `package/` folder and take about a minute. The hover and press tests run on a sample of the Lucide icons. `SHAPCN_FULL=1 node --test test/hover-press.test.mjs` runs all 1,858 icons (a few minutes).
 
 ## Where things are
 
@@ -42,6 +42,8 @@ Every change must keep these rules. They are the look of shapcn.
 5. No doubled lines. At no time may two strokes lie on top of each other and look like one thick line, or leave a ghost behind.
 6. Exact ends. At the start the picture is the first icon. At the end it is the second icon.
 7. Pieces that stay, stay. If the same piece is in both icons (the body of a microphone in `mic` and `mic-off`), it must not move.
+
+Hover and press styles follow the same spirit. The first and the last frame are the rest icon. No point goes more than 3 units outside the 24 box. The stroke width and the opacity do not change (except the stroke weight of `bold`). Strokes that touch stay joined. A style should be interruptible: a pointer that leaves in the middle goes back from the frame on screen (`wiggle` and `cascade` are the two that finish their short run).
 
 ## How to propose a change
 

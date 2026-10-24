@@ -23,11 +23,23 @@ Status: the script tag works today. The npm package is in progress. Source is on
 
 Easing: `smooth`, `spring`, or `elastic`. The script includes all 1,858 Lucide icons.
 
-Add `hover="alive"` and the icon comes alive a little on hover or focus, then rests (it does not change into another icon):
+### Hover and press
+
+Add `hover` and the icon reacts to the pointer and to keyboard focus, then rests. Add `press` and it reacts to a click, a tap, Enter and Space. Neither one changes the icon into another icon.
 
 ```html
-<morph-icon name="sun" hover="alive"></morph-icon>
+<button><morph-icon name="bell" hover="grow"></morph-icon></button>
+<button><morph-icon name="trash" press="burst"></morph-icon></button>
 ```
+
+| Attribute | Values |
+| --- | --- |
+| `hover` | `wiggle`, `grow`, `bend`, `bold` (stays while hovered), `cascade`, `move` (sways with the pointer). `alive` is the old name of `wiggle`. |
+| `press` | `pop`, `squash`, `squat-jump`, `burst` |
+| `hover-strength`, `press-strength` | 0.5 to 3. Default 1.5. |
+| `hover-duration`, `press-duration` | Milliseconds. Each style has its own default. |
+
+A press can change the icon. The new icon morphs while the press plays: `el.pressTo('circle-check')`. Setting `name` while the press runs does the same. With `prefers-reduced-motion: reduce`, hover and press do nothing.
 
 ### npm
 
@@ -45,7 +57,7 @@ The build writes `dist/morph-icon.js`.
 
 ### Sizes
 
-75 KB engine, gzipped. 220 KB with all 1,858 Lucide icons.
+83 KB engine, gzipped. 235 KB with all 1,858 Lucide icons.
 
 ## Use with AI coding agents
 
@@ -66,7 +78,7 @@ git clone https://github.com/seahorsecastle/shapcn.git
 cd shapcn/package
 npm install
 npm run build   # generates the icon modules and dist/morph-icon.js
-npm test        # a few seconds
+npm test        # about a minute
 ```
 
 Read `CONTRIBUTING.md` for the motion rules and how to propose a change.

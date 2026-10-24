@@ -1,8 +1,10 @@
 {
   "skill_name": "shapcn",
   "evals": [
-    { "id": 1, "prompt": "Make a plain HTML play/pause toggle button where the icon morphs. No build step.", "expected": "Script tag https://shapcn.com/morph-icon.js, <morph-icon name=play>, name changes to pause on click, aria-label on button, aria-hidden on icon." },
-    { "id": 2, "prompt": "In my React app add a theme switch button where the sun morphs into a moon with a spring feel.", "expected": "<morph-icon name={dark?'moon':'sun'} easing=\"spring\">, aria-label on button, element defined only in browser, checks npm view first." },
-    { "id": 3, "prompt": "I have my own SVG icon (a star). Make it morph into a lucide heart.", "expected": "registerSVGs on npm path, or window.shapcn.registerIcons with nodes on script path; lucide heart name is 'heart'." }
+    {"id": 1, "prompt": "Make a plain HTML play/pause toggle button where the icon morphs. No build step.", "expected": "Script tag https://shapcn.com/morph-icon.js, <morph-icon name=play>, name changes to pause on click, aria-label on button, aria-hidden on icon."},
+    {"id": 2, "prompt": "In my React app add a theme switch button where the sun morphs into a moon with a spring feel.", "expected": "<morph-icon name={dark?'moon':'sun'} easing=\"spring\">, aria-label on button, element defined only in browser, checks npm view first."},
+    {"id": 3, "prompt": "I have my own SVG icon (a star). Make it morph into a lucide heart.", "expected": "registerSVGs on npm path, or window.shapcn.registerIcons with nodes on script path; lucide heart name is 'heart'."},
+    {"id": 4, "prompt": "Add a hover effect to the icons in my nav bar so they grow a little on hover. Plain HTML.", "expected": "Script tag, <morph-icon name=... hover=\"grow\"> inside a link or button, aria-label on the control, aria-hidden on the icon, no invented hover names."},
+    {"id": 5, "prompt": "Make my delete button burst and turn into a check mark when clicked.", "expected": "<morph-icon name=\"trash\" press=\"burst\"> and icon.pressTo('check') in the click handler (or setting name during the press), aria-label on the button, no keyframes."}
   ]
 }
