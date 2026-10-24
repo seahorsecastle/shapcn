@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Defects from the independent tester</title>
+<style>
+body{margin:20px;font:14px system-ui}
+.b{display:inline-grid;place-items:center;width:44px;height:44px;border:1px solid #ccc;margin:6px;cursor:pointer;background:#fff;color:#111}
+.b svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2}
+#rot svg{transform:rotate(90deg)}
+#ptr svg,#bigwrap svg{pointer-events:none}
+#bigwrap{display:block;width:700px;height:60px;cursor:pointer;border:1px dashed #ccc}
+</style></head><body>
+<button class="b" id="c1"><svg viewBox="0 0 24 24" stroke-linecap="round"><path d="M5 12h14M12 5v14"/></svg></button>
+<button class="b" id="c2"><svg viewBox="0 0 24 24" stroke-linecap="round"><path d="M5 12h14M12 5v14"/></svg></button>
+<button class="b" id="rot"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3v18l11-9z"/></svg></button>
+<button class="b" id="zoom"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5v14"/></svg></button>
+<a class="b" id="ptr"><svg viewBox="0 0 24 24" stroke-linecap="round"><path d="M5 12h14M12 5v14"/></svg></a>
+<button class="b" id="butt"><svg viewBox="0 0 24 24" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10"><path d="M4 18l8-12 8 12"/></svg></button>
+<div id="bigwrap"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5v14"/></svg></div>
+<script>window.clicks={};for(const b of document.querySelectorAll('.b'))b.addEventListener('click',()=>{window.clicks[b.id]=(window.clicks[b.id]||0)+1});</script>
+</body></html>

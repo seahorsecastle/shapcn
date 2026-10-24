@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>React-like page</title>
+<style>
+body{margin:0;font:14px system-ui;background:#fff;color:#111}
+#root{padding:16px;display:flex;gap:12px}
+.btn{display:inline-grid;place-items:center;width:44px;height:44px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#111;cursor:pointer}
+.btn svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+</style></head><body>
+<div id="root"></div>
+<script>
+// A tiny "virtual DOM": every state change throws the old buttons away and builds new ones, the way a sloppy render does.
+const HEART='<svg viewBox="0 0 24 24"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>';
+const BELL='<svg viewBox="0 0 24 24"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></svg>';
+const state={hover:null,count:0};
+window.renders=0;window.clicks=0;
+function render(){
+  window.renders++;
+  const root=document.getElementById('root');
+  root.innerHTML='<button class="btn" id="like" aria-label="like">'+HEART+'</button><button class="btn" id="ring" aria-label="ring">'+BELL+'</button><span id="count">'+state.count+'</span>';
+  root.querySelector('#like').addEventListener('click',()=>{window.clicks++;state.count++;setTimeout(render,0);});
+  root.querySelector('#like').addEventListener('mouseenter',()=>{if(state.hover==='like')return;state.hover='like';setTimeout(render,40);});
+}
+render();
+</script>
+</body></html>

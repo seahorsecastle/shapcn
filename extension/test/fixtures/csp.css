@@ -1,0 +1,4 @@
+body{margin:0;font:14px system-ui}
+#bar{padding:16px}
+button{width:44px;height:44px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;color:#111}
+button svg{width:24px;height:24px;fill:currentColor}

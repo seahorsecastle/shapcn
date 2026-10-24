@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>use elements that draw nothing</title>
+<style>
+body{margin:0;font:14px system-ui}
+.bar{display:flex;gap:16px;padding:16px}
+button{width:48px;height:48px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#111;cursor:pointer;display:grid;place-items:center}
+button svg{width:24px;height:24px;fill:currentColor}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<path id="hidp" style="display:none" d="M2 2h20v20H2z"/>
+<path id="vis" d="M6 6h12v12H6z"/>
+<symbol id="sym" viewBox="0 0 24 24"><path d="M8 8h8v8H8z"/></symbol>
+</defs></svg>
+<!-- a sprite that is itself hidden and faint: what a <use> draws is judged where it is drawn, not here -->
+<svg width="0" height="0" style="position:absolute;visibility:hidden;fill-opacity:.4">
+<path id="inh" d="M6 6h12v12H6z"/>
+<symbol id="inhsym" viewBox="0 0 24 24"><path d="M8 8h8v8H8z"/></symbol>
+<path id="ownvis" style="visibility:hidden" d="M3 3h18v18H3z"/>
+<svg id="hidsvg" style="display:none" viewBox="0 0 24 24"><path d="M2 2h20v20H2z"/></svg>
+<svg id="okvg" viewBox="0 0 24 24"><path d="M5 5h14v14H5z"/></svg>
+</svg>
+<div class="bar">
+<button type="button" id="u-ok"><svg viewBox="0 0 24 24"><use href="#vis"/></svg></button>
+<button type="button" id="u-sym"><svg viewBox="0 0 24 24"><use href="#sym"/></svg></button>
+<button type="button" id="u-hidtarget"><svg viewBox="0 0 24 24"><use href="#hidp"/></svg></button>
+<button type="button" id="u-vishidden"><svg viewBox="0 0 24 24"><use href="#vis" style="visibility:hidden"/></svg></button>
+<button type="button" id="u-faded"><svg viewBox="0 0 24 24"><use href="#vis" style="opacity:.4"/></svg></button>
+<button type="button" id="u-none"><svg viewBox="0 0 24 24"><use href="#vis" style="display:none"/></svg></button>
+<button type="button" id="u-inh"><svg viewBox="0 0 24 24"><use href="#inh"/></svg></button>
+<button type="button" id="u-inhsym"><svg viewBox="0 0 24 24"><use href="#inhsym"/></svg></button>
+<button type="button" id="u-ownvis"><svg viewBox="0 0 24 24"><use href="#ownvis"/></svg></button>
+<button type="button" id="u-hidsvg"><svg viewBox="0 0 24 24"><use href="#hidsvg"/></svg></button>
+<button type="button" id="u-okvg"><svg viewBox="0 0 24 24"><use href="#okvg"/></svg></button>
+</div>
+</body></html>

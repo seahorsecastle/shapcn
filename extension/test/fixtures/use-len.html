@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>use lengths</title>
+<style>
+body{margin:20px}
+.b{display:inline-grid;place-items:center;width:44px;height:44px;border:1px solid #ccc;margin:6px;cursor:pointer;background:#fff;color:#111}
+.b svg{width:24px;height:24px;fill:currentColor;stroke:none}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute"><defs><symbol id="s48" viewBox="0 0 48 48"><path d="M8 8h32v32H8z"/></symbol></defs></svg>
+<button class="b" id="l-px"><svg viewBox="0 0 24 24"><use href="#s48" width="24px" height="24px"/></svg></button>
+<button class="b" id="l-num"><svg viewBox="0 0 24 24"><use href="#s48" x="1" y="1" width="22" height="22"/></svg></button>
+<button class="b" id="l-pct"><svg viewBox="0 0 24 24"><use href="#s48" width="50%"/></svg></button>
+<button class="b" id="l-em"><svg viewBox="0 0 24 24"><use href="#s48" width="2em" height="2em"/></svg></button>
+<button class="b" id="l-xpct"><svg viewBox="0 0 24 24"><use href="#s48" x="10%"/></svg></button>
+</body></html>

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>shapcn everywhere</title>
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<header>
+  <span class="tile" id="mark" aria-hidden="true"></span>
+  <h1>shapcn <span class="hl">everywhere</span></h1>
+</header>
+
+<main>
+  <label class="row switch">
+    <span class="lab"><b>Enabled</b><small>All sites</small></span>
+    <input type="checkbox" id="enabled" role="switch">
+    <span class="track"></span>
+  </label>
+
+  <label class="row switch">
+    <span class="lab"><b>Off on this site</b><small id="host">No page</small></span>
+    <input type="checkbox" id="siteoff" role="switch">
+    <span class="track"></span>
+  </label>
+
+  <section class="field">
+    <div class="flab" id="hover-l">Hover style</div>
+    <button type="button" class="pick" id="hover" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="hover-l hover"><span class="cur"></span><i class="chev" aria-hidden="true"></i></button>
+    <div class="menu" id="hover-menu" role="listbox" aria-labelledby="hover-l" hidden></div>
+  </section>
+
+  <section class="field">
+    <div class="flab" id="click-l">Click style</div>
+    <button type="button" class="pick" id="click" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="click-l click"><span class="cur"></span><i class="chev" aria-hidden="true"></i></button>
+    <div class="menu" id="click-menu" role="listbox" aria-labelledby="click-l" hidden></div>
+  </section>
+
+  <section class="field">
+    <div class="flab"><label for="strength">Strength</label><output id="sval">1.5</output></div>
+    <div class="sl">
+      <input type="range" id="strength" min="0.5" max="3" step="0.1" value="1.5">
+      <button type="button" class="try" id="try" aria-label="Preview"></button>
+    </div>
+  </section>
+</main>
+
+<footer id="status">Settings apply to open tabs at once.</footer>
+<script src="popup.js"></script>
+</body>
+</html>

@@ -72,6 +72,10 @@ The build writes `dist/morph-icon.js`.
 
 79 KB engine, gzipped. 237 KB with all 1,858 Lucide icons.
 
+## Chrome extension
+
+[`extension/`](extension) is "shapcn everywhere": a Chrome extension (Manifest V3) that makes the small icons on any page come alive on hover and click, drawn by this engine. It collects nothing and makes no network request. See [`extension/README.md`](extension/README.md) to build it and load it unpacked, and https://shapcn.com/extension for the page.
+
 ## Use with AI coding agents
 
 This repo has an agent skill at `skills/shapcn`. It teaches a coding agent how to install shapcn, use `<morph-icon>` in HTML, React, Vue and Svelte, register icons, and fix common errors. Copy the `skills/shapcn` folder into your agent's skills folder (for Claude Code: `.claude/skills/shapcn`).
@@ -81,6 +85,7 @@ A plain-text summary for any model is at https://shapcn.com/llms.txt.
 ## Repository layout
 
 - `package/`: the engine and the npm package source, with tests and build.
+- `extension/`: the Chrome extension "shapcn everywhere", built from `package/`, with its tests.
 - `skills/shapcn`: the agent skill.
 - `.github`: CI, issue and pull request templates.
 

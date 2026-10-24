@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Hidden artwork</title>
+<style>
+body{margin:0;font:14px system-ui;min-height:3000px}
+.bar{display:flex;gap:16px;padding:16px}
+button{width:48px;height:48px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#111;cursor:pointer;display:grid;place-items:center}
+button svg{width:24px;height:24px;fill:currentColor}
+</style></head><body>
+<div class="bar">
+<!-- one small visible mark, plus big artwork the page hides three ways -->
+<button type="button" id="hid"><svg viewBox="0 0 24 24"><path d="M9 9h6v6H9z"/><g style="display:none"><circle cx="12" cy="12" r="11"/></g><circle cx="12" cy="12" r="11" style="visibility:hidden"/><rect x="0" y="0" width="24" height="24" style="display:none"/></svg></button>
+<button type="button" id="faded"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z" style="opacity:.3"/></svg></button>
+</div>
+<script>window.clicks={};for(const b of document.querySelectorAll('button'))b.addEventListener('click',()=>{window.clicks[b.id]=(window.clicks[b.id]||0)+1});</script>
+</body></html>

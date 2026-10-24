@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Defects, pass 4</title>
+<style>
+body{margin:20px;font:14px system-ui}
+.b{display:inline-grid;place-items:center;width:44px;height:44px;border:1px solid #ccc;margin:6px;cursor:pointer;background:#fff;color:#111}
+.b svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2}
+.b svg.f{fill:currentColor;stroke:none}
+.hv{visibility:hidden}
+.fo{fill-opacity:.2}
+.hg{visibility:hidden}
+#strong2 svg{opacity:1 !important}
+#symar{width:48px;height:24px}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<path id="p-hv" class="hv" d="M4 4h16v16H4z"/>
+<path id="p-fo" class="fo" d="M4 4h16v16H4z"/>
+<symbol id="s48" viewBox="0 0 48 48"><path d="M8 8h32v32H8z"/></symbol>
+<symbol id="s24" viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/></symbol>
+<symbol id="sym-hg" viewBox="0 0 24 24"><g class="hg"><path d="M4 4h16v16H4z"/></g></symbol>
+<symbol id="sym-hgv" viewBox="0 0 24 24"><g class="hg"><path style="visibility:visible" d="M4 4h16v16H4z"/></g></symbol>
+</defs></svg>
+<div>
+<button class="b" id="k1"><svg viewBox="0 0 24 24" stroke-linecap="round"><path d="M5 12h14M12 5v14"/></svg></button>
+<button class="b" id="k2"><svg viewBox="0 0 24 24" stroke-linecap="round"><path d="M5 12h14M12 5v14"/></svg></button>
+<button class="b" id="k3"><svg viewBox="0 0 24 24" stroke-linecap="round"><path d="M5 12h14M12 5v14"/></svg></button>
+<button class="b" id="plain"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3v18l11-9z"/></svg></button>
+<button class="b" id="sym48"><svg viewBox="0 0 24 24" class="f"><use href="#s48"/></svg></button>
+<button class="b" id="symar"><svg viewBox="0 0 48 24" class="f" style="width:48px;height:24px"><use href="#s24"/></svg></button>
+</div><div>
+<button class="b" id="u-hv"><svg viewBox="0 0 24 24" class="f"><use href="#p-hv"/></svg></button>
+<button class="b" id="u-fo"><svg viewBox="0 0 24 24" class="f"><use href="#p-fo"/></svg></button>
+<button class="b" id="u-hg"><svg viewBox="0 0 24 24" class="f"><use href="#sym-hg"/></svg></button>
+<button class="b" id="u-hgv"><svg viewBox="0 0 24 24" class="f"><use href="#sym-hgv"/></svg></button>
+<button class="b" id="strong"><svg viewBox="0 0 24 24" style="opacity:1 !important" stroke-linecap="round"><path d="M5 12h14M12 5v14"/></svg></button>
+<button class="b" id="strong2"><svg viewBox="0 0 24 24" stroke-linecap="round"><path d="M5 12h14M12 5v14"/></svg></button>
+<button class="b" id="mixed"><svg viewBox="0 0 24 24"><path stroke-linecap="round" d="M5 8h14"/><path stroke-linecap="butt" d="M5 16h14"/></svg></button>
+</div>
+<script>window.clicks={};for(const b of document.querySelectorAll('.b'))b.addEventListener('click',()=>{window.clicks[b.id]=(window.clicks[b.id]||0)+1});</script>
+</body></html>

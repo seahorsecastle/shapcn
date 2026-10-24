@@ -1,0 +1,6 @@
+node_modules/
+# built from src/ by "npm run build"
+/content.js
+/popup.js
+/.test-build/
+/test/out/

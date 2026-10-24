@@ -25,3 +25,29 @@ jobs:
       - run: npm test
         env:
           SHAPCN_REQUIRE_ALL: '1' # the browser and TypeScript tests must run in CI, not skip
+
+  extension:
+    # The Chrome extension (extension/): builds it from this repository's own package/ and runs its two suites in headless system Chrome.
+    # The tests that open real public sites are skipped here (--no-web).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build the engine package (generates the icon data the popup uses)
+        working-directory: package
+        run: |
+          npm install
+          npm run build
+      - name: Install the extension tools
+        working-directory: extension
+        run: npm install
+      - name: Install system Chrome
+        working-directory: extension
+        run: npx playwright install --with-deps chrome
+      - name: Build and test
+        working-directory: extension
+        run: npm test
+        env:
+          CI: 'true'
