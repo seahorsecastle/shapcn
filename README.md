@@ -10,7 +10,7 @@ Website and playground: https://shapcn.com. Docs: https://shapcn.com/docs.
 
 ## Install
 
-Status: the script tag works today. The npm package is in progress. Source is on GitHub.
+The package is on npm as `shape-aware-morph` (`npm i shape-aware-morph`). The script tag works too. Source is on GitHub.
 
 ### Script tag
 
@@ -43,7 +43,20 @@ A press can change the icon. The new icon morphs while the press plays: `el.pres
 
 ### npm
 
-The package `shape-aware-morph` is in progress. It is not on npm yet.
+```sh
+npm i shape-aware-morph
+```
+
+The package `shape-aware-morph` is on npm. Import the engine and the icons you use (ES modules only):
+
+```js
+import { registerLucide, defineMorphIcon } from 'shape-aware-morph';
+
+await registerLucide();   // loads the Lucide icons
+defineMorphIcon();        // defines <morph-icon>
+```
+
+There are modules for 12 icon sets (`shape-aware-morph/lucide`, `shape-aware-morph/tabler-outline`, ...). See `package/README.md`. As one file from a CDN: `https://unpkg.com/shape-aware-morph` or `https://cdn.jsdelivr.net/npm/shape-aware-morph@0.2.1/dist/morph-icon.js`.
 
 ### Build from source
 

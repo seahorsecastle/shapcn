@@ -16,11 +16,11 @@
 - It defines `<morph-icon>` and registers all Lucide icons.
 - It sets `window.shapcn`. Members: `DEFAULTS`, `easings`, `registerIcons`, `registerFamily`, `registerFamilyFile`, `getIconInfo`, `getFamily`, `getIconNames`, `iconToSVG`, `planMorph`, `planAlive`, `MorphIcon`, `defineMorphIcon`.
 - `registerSVGs` and `registerFamilyIcons` are not on `window.shapcn`. Use `registerIcons` for your own icons here (see below).
-- The file is large (about 0.9 MB, all Lucide icons). If page weight matters, use npm once it is published.
+- The file is large (about 0.9 MB, all Lucide icons). If page weight matters, use npm and import only the icons you use.
 
-## npm (after publication)
+## npm
 
-First run `npm view shape-aware-morph version`. If it prints a version, install:
+The package is published. Install:
 
 ```sh
 npm i shape-aware-morph

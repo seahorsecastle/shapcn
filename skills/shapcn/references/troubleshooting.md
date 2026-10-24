@@ -40,7 +40,7 @@ The package is ES modules only. Use `import`. In Node, `require('shape-aware-mor
 Give the tag a fixed box: `size="24"` is the default. In SSR pages, add CSS `morph-icon { width: 24px; height: 24px; }` to match.
 
 ## npm package not found
-`npm view shape-aware-morph version` returned 404: the package is not published yet. Use the script tag path.
+`npm i shape-aware-morph` fails with 404: check the spelling (`shape-aware-morph`, not `shapcn`) and that the registry is npmjs.org. The package is published (0.2.1 and later). The script tag path works without npm.
 
 ## React: TypeScript says `morph-icon` does not exist
 - npm path: add `import 'shape-aware-morph';` once in a file that TypeScript includes. The package declares the JSX type.

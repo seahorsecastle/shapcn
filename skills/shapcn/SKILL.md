@@ -19,10 +19,7 @@ Do not invent options. Use only the attributes and methods in this skill and its
 
 ## Install path
 
-Run `npm view shape-aware-morph version` first.
-
-- It prints a version: the package is published. Use npm. See `references/install-and-icons.md`.
-- It prints an error (404): the package is not published yet. Use the script tag:
+The package is on npm as `shape-aware-morph`. Use npm in a project with a bundler (a React, Vue or Svelte app). See `references/install-and-icons.md`. Use the script tag for plain HTML, prototypes and CMS pages:
 
 ```html
 <script type="module" src="https://shapcn.com/morph-icon.js"></script>
@@ -32,7 +29,7 @@ Use a classic script (`<script src="https://shapcn.com/morph-icon.js"></script>`
 
 The script tag build defines `<morph-icon>` for you and includes all Lucide icons. It also sets `window.shapcn`. It needs no bundler and no `registerLucide()` call.
 
-Use the script tag also for plain HTML, prototypes, and CMS pages, even after publication.
+Use the script tag for plain HTML, prototypes, and CMS pages.
 
 ## Smallest working example
 
