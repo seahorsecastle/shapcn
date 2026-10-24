@@ -368,3 +368,49 @@ test('the rejected lab styles are gone', () => {
     assert.ok(!m.isPressStyle(gone), gone + ' is not a press style');
   }
 });
+
+// ---- 0.2.1: edge cases of the press that changes the icon ----
+test('fromT 0 and fromT 1 both give a finite plan that starts on the old icon and ends on the new icon', () => {
+  const fails = [];
+  const pairs = [...REAL_PAIRS.slice(0, 8), ['minus', 'arrow-down'], ['trash', 'check']];
+  for (const style of PRESS) {
+    for (const [a, b] of pairs) {
+      for (const fromT of [0, 0.5, 0.75, 0.999, 1]) {
+        const why = [];
+        const plan = m.planPress(a, { style, to: b, fromT });
+        for (let q = 0; q <= 50; q++) for (const e of plan.frame(q / 50)) for (const v of e.d.replace(/M/g, ' ').trim().split(/\s+/).map(Number)) if (!Number.isFinite(v)) why.push('nan@' + q);
+        if (fromT === 0 && hd(polysOf(plan.frame(0)), restPolys(a)) > 0.05) why.push('start');
+        if (hd(polysOf(plan.frame(1)), restPolys(b)) > 0.05) why.push('end');
+        // the morph really plays over the plan: halfway it is neither the old nor the new icon (a window of zero length would pop at the end)
+        if (a === 'trash' && fromT >= 0.75) {
+          const mid = polysOf(plan.frame(0.5));
+          if (hd(mid, restPolys(a)) < 0.3 || hd(mid, restPolys(b)) < 0.3) why.push('noMorph');
+        }
+        if (why.length) fails.push(style + ' ' + a + '>' + b + ' fromT=' + fromT + ' [' + [...new Set(why)].join(',') + ']');
+      }
+    }
+  }
+  report('fromT boundaries', fails);
+});
+
+test('a press that joins a running press starts on the picture of that press (no jump)', () => {
+  const fails = [];
+  for (const style of PRESS) {
+    for (const [a, b] of [['minus', 'arrow-down'], ['heart', 'check'], ['sun', 'moon'], ['trash', 'check'], ['mail', 'mail-open']]) {
+      for (const fromT of [0.1, 0.3, 0.5, 0.8]) {
+        const run = m.planPress(a, { style });
+        const joined = m.planPress(a, { style, to: b, fromT });
+        const d = hd(polysOf(joined.frame(0)), polysOf(run.frame(fromT)));
+        if (d > 0.05) fails.push(style + ' ' + a + '>' + b + ' fromT=' + fromT + ' jump ' + d.toFixed(2));
+      }
+    }
+  }
+  report('joined press jump', fails);
+});
+
+test('the `to` option is an icon name (string): the types, and a non-string does not change the icon', async () => {
+  const { readFileSync } = await import('node:fs');
+  const dts = readFileSync(new URL('../index.d.ts', import.meta.url), 'utf8');
+  assert.match(dts, /to\?: string;/, 'index.d.ts types `to` as string');
+  assert.doesNotMatch(dts, /to\?: IconSource/, 'index.d.ts must not say IconSource for `to`');
+});

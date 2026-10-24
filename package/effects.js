@@ -763,7 +763,7 @@ function alStyleX(style, S, T, RP, strength, o = {}) {
     }
     gain = lo;
   }
-  return { X: (i, t) => (atRest(t) ? RP[i] : alWarp(style, ctx, DP[i], alClamp(t), gain)), W: one, dense: (i) => DP[i] };
+  return { X: (i, t) => (atRest(t) ? RP[i] : alWarp(style, ctx, DP[i], alClamp(t), gain)), W: one, dense: (i) => DP[i], info: { ctx, gain } };
 }
 
 // ---------------------------------------------------------------------------
@@ -1285,28 +1285,56 @@ function planPressTo(name, to, opts) {
   const strength = Number.isFinite(opts.strength) && opts.strength > 0 ? opts.strength : STRENGTH_DEFAULT;
   const fromT = Number.isFinite(opts.fromT) ? alClamp(opts.fromT) : 0;
   const morph = planMorph(name, to, { easing: 'spring', ...opts, style: undefined, to: undefined, strength: undefined, fromT: undefined });
-  const ctx = alPressCtx([name, to]);
+  const ctxC = alPressCtx([name, to]);
   const win = PRESS_TO_WINDOW[style] || [0.15, 0.7];
-  const ws = Math.max(win[0], fromT);
-  const we = Math.min(1, Math.max(win[1], ws + 0.25));
+  // A press that joins one that runs starts from the context and the gain of that press (its pivot and size), so its first
+  // frame is the picture on screen. Both blend to the context of the combined plan over the first part of the plan.
+  let ctx0 = null;
+  let gain0 = 1;
+  if (fromT > 0) {
+    try {
+      const info = planAlive(name, { click: true, style, strength: opts.strength, ...(opts.cornerAngle === undefined ? {} : { cornerAngle: opts.cornerAngle }) }).pressInfo;
+      if (info) {
+        ctx0 = info.ctx;
+        gain0 = info.gain;
+      }
+    } catch (e) {
+      ctx0 = null;
+    }
+  }
+  const BLEND = 0.4;
+  const ctxAt = (u) => {
+    if (!ctx0) return ctxC;
+    const e = alSmooth(u / BLEND);
+    const out = {};
+    for (const k of Object.keys(ctxC)) out[k] = typeof ctxC[k] === 'number' && typeof ctx0[k] === 'number' ? ctx0[k] + (ctxC[k] - ctx0[k]) * e : ctxC[k];
+    return out;
+  };
+  const gainAt = (u, g) => (ctx0 ? gain0 + (g - gain0) * alSmooth(u / BLEND) : g);
+  // A press that is almost over (late) has no room for the morph window of its style: the morph then plays over the whole plan.
+  const late = fromT > 0.7;
+  const ws = late ? fromT : Math.max(win[0], fromT);
+  const we = late ? 1 : Math.min(1, Math.max(win[1], ws + 0.25));
   // u: the plan time 0..1. The press time runs from fromT to 1. The morph time is its window.
   const pressT = (u) => fromT + (1 - fromT) * u;
-  const morphT = (t) => alClamp((t - ws) / (we - ws));
+  const morphT = (t, u) => (late ? alClamp(u) : alClamp((t - ws) / (we - ws)));
   const dOf = (P) => alD(P);
   // A morph path can hold several pieces (M x y x y ... M x y ...): each piece is warped alone.
-  const warpD = (d, t, g) =>
+  const warpD = (d, t, g, c) =>
     d
       .split('M')
       .filter((seg) => seg.trim())
-      .map((seg) => dOf(alWarp(key, ctx, Float64Array.from(seg.trim().split(/\s+/).map(Number)), t, g)))
+      .map((seg) => dOf(alWarp(key, c, Float64Array.from(seg.trim().split(/\s+/).map(Number)), t, g)))
       .join('');
   const frameAt = (u, g) => {
     const t = pressT(u);
-    const entries = morph.frame(morphT(t));
+    const entries = morph.frame(morphT(t, u));
+    const c = ctxAt(u);
+    const gg = gainAt(u, g);
     const res = [];
     for (const e of entries) {
       if (!e.d || e.d === 'M') continue;
-      res.push({ ...e, d: warpD(e.d, t, g) });
+      res.push({ ...e, d: warpD(e.d, t, gg, c) });
     }
     return res;
   };
@@ -1330,7 +1358,7 @@ function planPressTo(name, to, opts) {
   }
   const plan = Object.create(morph);
   plan.kind = 'press-to';
-  plan.pressWindow = { ws, we, fromT }; // the part of the plan before ws shows the old icon, after we the new icon
+  plan.pressWindow = late ? { ws: 0, we: 1, fromT } : { ws, we, fromT }; // the part of the plan before ws shows the old icon, after we the new icon (late: the morph runs over the whole plan)
   plan.frame = (u) => {
     u = alClamp(u);
     if (u >= 1) return morph.frame(1);
@@ -1340,8 +1368,10 @@ function planPressTo(name, to, opts) {
   plan.snapshot = (u) => {
     u = alClamp(u);
     const t = pressT(u);
-    const snap = morph.snapshot(morphT(t));
-    const loops = snap.loops.map((L) => ({ ...L, points: u >= 1 ? L.points : alWarp(key, ctx, L.points, t, gain) }));
+    const snap = morph.snapshot(morphT(t, u));
+    const c = ctxAt(u);
+    const gg = gainAt(u, gain);
+    const loops = snap.loops.map((L) => ({ ...L, points: u >= 1 ? L.points : alWarp(key, c, L.points, t, gg) }));
     return { ...snap, loops };
   };
   return plan;
@@ -1380,6 +1410,7 @@ export function planAlive(name, opts = {}) {
   let Wf = () => 1;
   let denseOf = null;
   let liveInfo = null;
+  let pressInfo = null;
   const kind = style ? { kind: style } : classifyAlive(S, T);
 
   // The rest polyline of each stroke. A closed stroke repeats its first point, so the drawn path closes.
@@ -1400,6 +1431,7 @@ export function planAlive(name, opts = {}) {
   if (style) {
     const sx = style === 'move' ? alMoveX(S, T, RP, strength, opts) : alStyleX(style, S, T, RP, strength, opts);
     liveInfo = sx.live || null;
+    pressInfo = sx.info || null;
     X = sx.X;
     Wf = sx.W;
     denseOf = sx.dense;
@@ -1587,6 +1619,7 @@ export function planAlive(name, opts = {}) {
   }
   const plan = alPlanObject({ slots, n: S.length, strokeWidth: alStrokeWidth(name), kind: kind.kind, X, Wf });
   plan.live = liveInfo;
+  plan.pressInfo = pressInfo; // the warp context and the fitted gain of a press style: a press that joins this one starts from them
   if (style && denseOf) {
     // Interruptible: `retargetPlan` can start from any frame of this plan.
     plan.dense = denseOf;

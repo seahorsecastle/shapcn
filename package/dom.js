@@ -139,7 +139,9 @@ export class MorphIcon {
   _cancel() {
     if (this._raf) caf(this._raf);
     this._raf = 0;
+    const live = this._live;
     this._live = null;
+    if (live && live.resolve) live.resolve(false); // an interrupted live sway settles its Promise
     const run = this._run;
     this._run = null;
     if (run) run.resolve(false);
@@ -273,7 +275,7 @@ export class MorphIcon {
     const run = this._run;
     if (run && run.returning && run.plan.dense) {
       const fwd = retargetPlan(run.plan, run.t, false);
-      if (fwd) return this._play(fwd, duration, this._name, o, { alive: true });
+      if (fwd) return this._play(fwd, duration, this._name, o, { alive: true, keep: !!run.wasHold });
     }
     // A morph that is playing wins over the alive animation; an alive run already playing is not restarted.
     if (this._run || this._holdPlan) return Promise.resolve(false);
@@ -316,6 +318,7 @@ export class MorphIcon {
     sway.push(v.vx);
     if (opts.tap) sway.release(); // a tap has no leave: one kick, then it rings down
     return new Promise((resolve) => {
+      this._live.resolve = resolve;
       const tick = () => {
         if (this._live === null || this._live.sway !== sway) {
           resolve(false);
@@ -323,7 +326,7 @@ export class MorphIcon {
         }
         renderInto(this.svg, sway.frame(now()), sway, ro);
         if (sway.atRest) {
-          this._live = null;
+          this._live = null; // (already settled below: no pending resolver to call)
           this._raf = 0;
           this._renderRest(this._name);
           resolve(true);
@@ -355,7 +358,7 @@ export class MorphIcon {
     if (!src) return Promise.resolve(false);
     const plan = retargetPlan(src, t, true);
     if (!plan) return Promise.resolve(false);
-    return this._play(plan, RETARGET_MS, this._name, o, { alive: true, returning: true });
+    return this._play(plan, RETARGET_MS, this._name, o, { alive: true, returning: true, wasHold: resolveHover(o.hover) === 'bold' });
   }
 
   /**
@@ -370,6 +373,7 @@ export class MorphIcon {
     if (this._name == null || this._hidden) return Promise.resolve(false);
     if (o.respectReducedMotion !== false && reducedMotion()) return Promise.resolve(false);
     if (this._run && !this._run.alive && !this._run.press) return Promise.resolve(false); // a morph wins
+    if (this._run && this._run.combined) return Promise.resolve(false); // a press that changes the icon plays to its end
     const duration = Number.isFinite(o.pressDuration) ? o.pressDuration : pressMs(style);
     let plan;
     try {
@@ -395,8 +399,10 @@ export class MorphIcon {
       this.set(to);
       return Promise.resolve(false);
     }
-    const style = isPressStyle(o.press) ? resolvePress(o.press) : 'squash';
     const run = this._run;
+    // A press that changes the icon runs: the icon is not at rest. Morph on from the picture on screen.
+    if (run && run.combined) return this.morphTo(to, opts);
+    const style = isPressStyle(o.press) ? resolvePress(o.press) : 'squash';
     const fromT = run && run.press && !run.combined ? run.t : 0;
     const base = Number.isFinite(o.pressDuration) ? Math.max(o.pressDuration, pressToMs(style)) : pressToMs(style);
     const duration = Math.max(200, base * (1 - fromT));
@@ -426,7 +432,7 @@ export class MorphIcon {
     const style = styleFor(plan.strokeWidth, plan.linecap, plan.linejoin, o);
     const ro = { occlusion: o.occlusion, strokeWidth: style.w, baseWidth: style.w, linecap: style.cap, linejoin: style.join };
     return new Promise((resolve) => {
-      this._run = { plan, start: now(), duration, resolve, t: 0, style, alive: !!(meta && meta.alive), press: !!(meta && meta.press), combined: !!(meta && meta.combined), returning: !!(meta && meta.returning) };
+      this._run = { plan, start: now(), duration, resolve, t: 0, style, alive: !!(meta && meta.alive), press: !!(meta && meta.press), combined: !!(meta && meta.combined), returning: !!(meta && meta.returning), wasHold: !!(meta && meta.wasHold) };
       this.svg.setAttribute('stroke-width', String(style.w));
       this.svg.setAttribute('stroke-linecap', style.cap);
       this.svg.setAttribute('stroke-linejoin', style.join);
@@ -586,28 +592,43 @@ export function defineMorphIcon(tagName = 'morph-icon') {
       };
       const host = this._nearestFocusable();
       const target = host && host !== this ? host : this;
+      // Every listener is kept in this._wired, so that disconnectedCallback can remove it (a removed icon must not stay alive).
+      this._wired = [];
+      const on = (t, type, fn) => {
+        t.addEventListener(type, fn);
+        this._wired.push([t, type, fn]);
+      };
       if (typeof document !== 'undefined') {
         // A tap anywhere else lets go of a held hover on a touch screen.
-        document.addEventListener('pointerdown', (e) => {
+        on(document, 'pointerdown', (e) => {
           const mi = this._mi;
           if (mi && e.pointerType === 'touch' && holds(mi) && mi._holdPlan && !target.contains(e.target)) mi.leaveAlive().catch(() => {});
         });
       }
-      target.addEventListener('pointerenter', this._onAlive);
-      target.addEventListener('focus', this._onAlive);
+      on(target, 'pointerenter', this._onAlive);
+      on(target, 'focus', this._onAlive);
       wirePointerTracker();
-      target.addEventListener('pointermove', this._onMove);
-      target.addEventListener('pointerleave', this._onLeave);
-      target.addEventListener('pointercancel', this._onLeave);
-      target.addEventListener('blur', this._onLeave);
-      target.addEventListener('pointerdown', this._onPress);
-      target.addEventListener('keydown', this._onPressKey);
+      on(target, 'pointermove', this._onMove);
+      on(target, 'pointerleave', this._onLeave);
+      on(target, 'pointercancel', this._onLeave);
+      on(target, 'blur', this._onLeave);
+      on(target, 'pointerdown', this._onPress);
+      on(target, 'keydown', this._onPressKey);
       this._focusHost = host && host !== this ? host : null;
     }
 
+    _unwireHover() {
+      for (const [t, type, fn] of this._wired || []) t.removeEventListener(type, fn);
+      this._wired = [];
+      this._hoverWired = false;
+      this._focusHost = null;
+    }
+
     disconnectedCallback() {
-      // Keep the instance. The element can come back. Stop any running frame.
+      // Keep the instance: the element can come back (connectedCallback wires it again, to its new nearest button).
+      // Stop any running frame, and remove every listener.
       if (this._mi) this._mi._cancel();
+      this._unwireHover();
     }
 
     attributeChangedCallback(attr, oldV, newV) {

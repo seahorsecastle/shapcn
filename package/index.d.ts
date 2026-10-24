@@ -1,4 +1,4 @@
-// Types for shape-aware-morph 0.2.0 (shapcn). Hand-written for the public API. Unknown details are typed loosely.
+// Types for shape-aware-morph 0.2.1 (shapcn). Hand-written for the public API. Unknown details are typed loosely.
 
 export type IconElement = [tag: string, attrs: Record<string, string | number>];
 export type IconNode = IconElement[];
@@ -58,8 +58,8 @@ export interface PressPlanOptions extends MorphOptions {
   style?: PressStyle | 'anticipate-jump';
   /** 0.5 to 3. Default 1.5. */
   strength?: number;
-  /** Another icon: the press plays while the icon changes into it. frame(0) is `name`, frame(1) is `to`. */
-  to?: IconSource;
+  /** The name of another registered icon (a string, not an icon node): the press plays while the icon changes into it. frame(0) is `name`, frame(1) is `to`. */
+  to?: string;
   /** With `to`: start at this phase (0 to 1) of a press that already runs. */
   fromT?: number;
 }

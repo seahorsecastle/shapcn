@@ -1,6 +1,6 @@
 {
   "name": "shape-aware-morph",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Morph any icon into any other, the way an animator would.",
   "type": "module",
   "license": "MIT",

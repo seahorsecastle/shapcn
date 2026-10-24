@@ -38,14 +38,14 @@ document.querySelector('morph-icon').setAttribute('name', 'mic-off');
 One file. It loads the Lucide icons and defines `<morph-icon>` for you.
 
 ```html
-<script src="https://unpkg.com/shape-aware-morph@0.2.0"></script>
+<script src="https://unpkg.com/shape-aware-morph@0.2.1"></script>
 <morph-icon name="mic"></morph-icon>
 <script>
   document.querySelector('morph-icon').setAttribute('name', 'mic-off');
 </script>
 ```
 
-jsDelivr works too: `https://cdn.jsdelivr.net/npm/shape-aware-morph@0.2.0`. The script also sets `window.shapcn` with the API.
+jsDelivr works too: `https://cdn.jsdelivr.net/npm/shape-aware-morph@0.2.1`. The script also sets `window.shapcn` with the API.
 
 ### React
 
