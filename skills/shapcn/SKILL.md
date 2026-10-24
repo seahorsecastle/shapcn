@@ -67,7 +67,7 @@ Use the script tag also for plain HTML, prototypes, and CMS pages, even after pu
 | `stagger` | `0` | 0 to 0.99. |
 | `effect` | `implode` (hide), `expand` (show) | `implode`, `explode`, `assemble`, `draw`, `erase`, `scale`, `expand`. |
 | `hover` | none | A hover style: `wiggle`, `grow`, `bend`, `bold`, `cascade`, `move`. Plays on pointer enter and on focus. The icon name does not change. `alive` is the old name of `wiggle`. |
-| `press` | none | A press style: `pop`, `squash`, `squat-jump`, `burst`. Plays on click, tap, Enter and Space. |
+| `press` | none | A press style: `pop`, `squash`, `squat-jump`, `burst`. Plays on pointer down (a press or a tap), and on Enter and Space. |
 | `hover-strength`, `press-strength` | `1.5` | 0.5 to 3. |
 | `hover-duration`, `press-duration` | the style's own | Milliseconds. |
 

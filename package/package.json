@@ -115,6 +115,7 @@
   "scripts": {
     "gen": "node scripts/gen-icons.mjs",
     "build": "node scripts/gen-icons.mjs && node scripts/build-dist.mjs",
+    "pretest": "npm run build",
     "test": "node --test test/*.test.mjs",
     "prepublishOnly": "npm run build"
   },

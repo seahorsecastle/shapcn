@@ -518,6 +518,9 @@ export function defineMorphIcon(tagName = 'morph-icon') {
       if (!this._mi) {
         const existing = this.querySelector(':scope > svg');
         this._mi = new MorphIcon(existing || this, this._optsFromAttrs());
+        // Every frame replaces the children of the svg. If the pointer went down on one of them, the target would leave the DOM and
+        // the browser would never fire `click`. So the svg takes no pointer events: the host element is always the target.
+        this._mi.svg.style.pointerEvents = 'none';
         const name = this.getAttribute('name');
         if (name) this._mi.set(name);
         else if (this.hasAttribute('name')) this._mi._hidden = true; // an empty name: the first name after it shows with the effect

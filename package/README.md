@@ -139,7 +139,7 @@ Change `name` and the icon morphs. Change any other attribute and the element up
 | `stagger` | `0` | Spreads the start of the strokes over part of the time. A number from 0 to 0.99. |
 | `effect` | `implode` to hide, `expand` to show | The effect for hide and show: `implode`, `explode`, `assemble`, `draw`, `erase`, `scale`, `expand`. |
 | `hover` | none | A hover style: `wiggle`, `grow`, `bend`, `bold`, `cascade` or `move`. Plays on pointer enter and on keyboard focus. `alive` is the old name of `wiggle`. See "Hover and press". |
-| `press` | none | A press style: `pop`, `squash`, `squat-jump` or `burst`. Plays on click, tap, Enter and Space. |
+| `press` | none | A press style: `pop`, `squash`, `squat-jump` or `burst`. Plays on pointer down (a mouse press or a tap), and on Enter and Space. The button's `click` still fires. |
 | `hover-strength`, `press-strength` | `1.5` | How far the motion goes. A number from 0.5 to 3. |
 | `hover-duration`, `press-duration` | the style's own | Milliseconds. |
 

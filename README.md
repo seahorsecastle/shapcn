@@ -57,7 +57,7 @@ The build writes `dist/morph-icon.js`.
 
 ### Sizes
 
-83 KB engine, gzipped. 235 KB with all 1,858 Lucide icons.
+78 KB engine, gzipped. 235 KB with all 1,858 Lucide icons.
 
 ## Use with AI coding agents
 
@@ -78,7 +78,8 @@ git clone https://github.com/seahorsecastle/shapcn.git
 cd shapcn/package
 npm install
 npm run build   # generates the icon modules and dist/morph-icon.js
-npm test        # about a minute
+npm test        # builds first, then about a minute of tests
+npm i --no-save playwright && npm test   # also runs the real-Chrome click test
 ```
 
 Read `CONTRIBUTING.md` for the motion rules and how to propose a change.

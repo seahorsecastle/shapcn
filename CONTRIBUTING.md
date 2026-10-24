@@ -21,7 +21,7 @@ npm test
 
 The generated icon modules and `dist/` are not in git. Do not edit them by hand. Change the engine files or the data, then build again.
 
-`npm test` runs the tests in `package/test/`. They need only the `package/` folder and take about a minute. The hover and press tests run on a sample of the Lucide icons. `SHAPCN_FULL=1 node --test test/hover-press.test.mjs` runs all 1,858 icons (a few minutes).
+`npm test` builds first (the `pretest` script runs `npm run build`, because the icon modules and `dist/` are generated and not in git), then runs the tests in `package/test/`. They need only the `package/` folder and take about a minute. `test/click-browser.test.mjs` runs in real Chrome: it checks that a press or hover style never swallows the button's `click`. It skips when Playwright is missing. Run it with `npm i --no-save playwright` (it uses the installed Google Chrome), or point `PLAYWRIGHT_DIR` at a folder that has `node_modules/playwright`. The hover and press tests run on a sample of the Lucide icons. `SHAPCN_FULL=1 node --test test/hover-press.test.mjs` runs all 1,858 icons (a few minutes).
 
 ## Where things are
 
