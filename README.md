@@ -70,7 +70,7 @@ The build writes `dist/morph-icon.js`.
 
 ### Sizes
 
-79 KB engine, gzipped. 237 KB with all 1,858 Lucide icons.
+80 KB engine, gzipped. 170 KB with all 1,858 Lucide icons (the minified script tag build).
 
 ## Chrome extension
 
