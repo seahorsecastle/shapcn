@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import cp from 'node:child_process';
 import { createRequire } from 'node:module';
-import { chromePath } from './chrome.mjs';
+import { chromePath, ciArgs } from './chrome.mjs';
 import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -50,7 +50,7 @@ const url = (n) => `http://localhost:${PORT}/${n}`;
 
 // ---------------------------------------------------------------- Chrome
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'shapcn-ext-'));
-const chrome = cp.spawn(CHROME, ['--headless=new', '--remote-debugging-port=0', '--user-data-dir=' + profile, '--enable-unsafe-extension-debugging', '--no-first-run', '--no-default-browser-check', '--window-size=1000,800', 'about:blank'], { stdio: 'ignore' });
+const chrome = cp.spawn(CHROME, ['--headless=new', '--remote-debugging-port=0', '--user-data-dir=' + profile, '--enable-unsafe-extension-debugging', '--no-first-run', '--no-default-browser-check', '--window-size=1000,800', ...ciArgs(), 'about:blank'], { stdio: 'ignore' });
 let wsPort = null;
 for (let i = 0; i < 100 && !wsPort; i++) {
   await sleep(100);
@@ -120,7 +120,12 @@ const SNAP = `(() => [...document.querySelectorAll('body *')].filter(e => !e.has
 const SVGS = `JSON.stringify([...document.querySelectorAll('svg')].map(s => s.outerHTML))`;
 
 async function center(P, sel) {
-  const b = await P.page.locator(sel).first().boundingBox();
+  // A page that re-renders (the React-style fixture) can replace the node between two calls: try again a few times.
+  let b = null;
+  for (let i = 0; i < 8 && !b; i++) {
+    b = await P.page.locator(sel).first().boundingBox();
+    if (!b) await sleep(25);
+  }
   return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
 }
 async function idle(P, ms = 4000) {

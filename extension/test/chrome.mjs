@@ -17,3 +17,9 @@ export function chromePath() {
   }
   throw new Error('Google Chrome not found. Install it (npx playwright install chrome) or set CHROME=<path>.');
 }
+
+// Extra Chrome flags for CI. On ubuntu-latest (24.04) AppArmor can block the user namespaces that the Chrome sandbox needs, and Chrome then stops with
+// "No usable sandbox". The harness starts Chrome itself (Playwright, which adds these flags on its own, is not the launcher), so it adds them here.
+export function ciArgs() {
+  return process.env.CI ? ['--no-sandbox', '--disable-dev-shm-usage'] : [];
+}
