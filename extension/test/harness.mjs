@@ -65,6 +65,9 @@ const browser = await chromium.connectOverCDP('http://127.0.0.1:' + wsPort);
 const bcdp = await browser.newBrowserCDPSession();
 const { id: EXT_ID } = await bcdp.send('Extensions.loadUnpacked', { path: EXT });
 const ctx = browser.contexts()[0];
+// THROTTLE=6 slows the CPU of every page 6 times (a slow shared CI runner without a GPU). Use it to look for tests that depend on speed.
+const THROTTLE = Number(process.env.THROTTLE || 0);
+if (THROTTLE > 1) ctx.on('page', (p) => ctx.newCDPSession(p).then((s) => s.send('Emulation.setCPUThrottlingRate', { rate: THROTTLE })).catch(() => {}));
 const version = browser.version();
 console.log('Chrome', version, 'extension id', EXT_ID, 'fixtures on port', PORT);
 
@@ -102,6 +105,9 @@ async function openPage(u, opts = {}) {
     if (r.exceptionDetails) throw new Error('iso: ' + (r.exceptionDetails.exception && r.exceptionDetails.exception.description));
     return r.result.value;
   };
+  // The test build has a logical clock: no step of time longer than 40 ms, so a slow machine still draws enough frames of each run
+  // (see clock in src/content.js). SHAPCN_REAL_TIME=1 turns it off.
+  if (!opts.noScript && !process.env.SHAPCN_REAL_TIME) await iso("typeof __shapcn !== 'undefined' && __shapcn.clockStart(40)").catch(() => {});
   return { page, iso, world, cdp };
 }
 

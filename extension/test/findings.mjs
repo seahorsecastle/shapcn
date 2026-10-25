@@ -40,6 +40,18 @@ async function ink(P, clip) {
   return n;
 }
 const inkN = async (P, clip) => (await ink(P, clip)).n;
+// How slow is this machine, seen from the page? A fixed piece of JavaScript is timed (about 3 ms on the machine where the limits were set).
+// The time limits of the cost tests are multiplied by max(1, that / 3), so that a slow runner does not fail a test that measures time.
+// The counters of those tests (scans, parent reads) do not depend on speed and are not scaled.
+async function slowdown(P) {
+  const ms = await P.page.evaluate(() => {
+    const t0 = performance.now();
+    let x = 0;
+    for (let i = 0; i < 4e6; i++) x += i % 7;
+    return performance.now() - t0 + (x < 0 ? 1 : 0);
+  });
+  return Math.max(1, ms / 3);
+}
 const clipAround = (c, r = 20) => ({ x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r });
 const hook = (P, expr) => P.iso(`typeof __shapcn.${expr.split('(')[0]} === 'function' ? (${'__shapcn.' + expr}) : 'no hook'`);
 
@@ -159,7 +171,8 @@ try {
     const held = await L.iso('__shapcn.active()');
     check('a held bold run draws no frames while the pointer stays (frames in 400 ms: at most 2)', held === 1 && f1 - f0 <= 2, `runs ${held}, frames in 400 ms ${f1 - f0}`);
     await L.page.evaluate(() => window.scrollBy(0, 40));
-    await sleep(150);
+    // two animation frames: the scroll event has been handled (the browser's own pointer-leave after a scroll comes later, and ends the run)
+    await L.page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
     const info = await hook(L, 'overlayInfo()');
     const o = Array.isArray(info) ? info[0] : null;
     check('after a scroll the held overlay is still on its icon (within 1 px)', !!o && Math.abs(o.top - o.svgTop) < 1 && Math.abs(o.left - o.svgLeft) < 1, JSON.stringify(info));
@@ -718,6 +731,7 @@ try {
     const c = await center(P, '#k3 svg');
     await P.page.mouse.move(c.x, c.y);
     await sleep(700); // held: the observer is on
+    const slow = await slowdown(P);
     const sc0 = await P.iso('__shapcn.stats.scanned');
     const t = await P.page.evaluate(async () => {
       const t0 = performance.now();
@@ -732,7 +746,7 @@ try {
       return { build: t1 - t0, observer: t2 - t1 };
     });
     const scans = (await P.iso('__shapcn.stats.scanned')) - sc0;
-    check('3,000 nested insertions in one task: one subtree scan, not 3,000 (and the delivery takes under 15 ms)', t.observer < 15 && scans <= 2, `subtree scans ${scans}, build ${t.build.toFixed(1)} ms, observer ${t.observer.toFixed(1)} ms`);
+    check('3,000 nested insertions in one task: one subtree scan, not 3,000 (and the delivery takes under 15 ms)', t.observer < 15 * slow && scans <= 2, `machine ${slow.toFixed(1)}x slower than the reference, limit ${(15 * slow).toFixed(0)} ms, subtree scans ${scans}, build ${t.build.toFixed(1)} ms, observer ${t.observer.toFixed(1)} ms`);
     await P.page.close();
   }
 
@@ -752,6 +766,7 @@ try {
     // warm-up: one press on an ordinary icon (the first call of any code is slow in a cold page)
     await P.page.evaluate(() => document.getElementById('k1').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' })));
     await sleep(500);
+    const slow = await slowdown(P);
     const runs0 = await P.iso('__shapcn.stats.runs');
     const times = [];
     for (let i = 0; i < 3; i++) {
@@ -765,7 +780,7 @@ try {
       await sleep(100);
     }
     const runs = (await P.iso('__shapcn.stats.runs')) - runs0;
-    check('a pointerdown on a <use> icon on a page with 20,000 rules takes under 5 ms (3 tries), and the icon is skipped', Math.max(...times) < 5 && runs === 0, `times ${times.map((x) => x.toFixed(2)).join(', ')} ms, runs ${runs}`);
+    check('a pointerdown on a <use> icon on a page with 20,000 rules takes under 5 ms (3 tries), and the icon is skipped', Math.max(...times) < 5 * slow && runs === 0, `machine ${slow.toFixed(1)}x slower than the reference, limit ${(5 * slow).toFixed(0)} ms, times ${times.map((x) => x.toFixed(2)).join(', ')} ms, runs ${runs}`);
     await P.page.close();
   }
 
@@ -866,6 +881,7 @@ try {
       window.__deepest = p;
     });
     await sleep(100);
+    const slow = await slowdown(P);
     const r0 = await P.iso('__shapcn.stats.parentReads');
     // task 2: 20,000 leaves under the deepest element
     const t = await P.page.evaluate(async () => {
@@ -876,7 +892,7 @@ try {
       return { build: t1 - t0, observer: performance.now() - t1 };
     });
     const reads = (await P.iso('__shapcn.stats.parentReads')) - r0;
-    check('20,000 leaves under 512 ancestors: parent reads are about nodes + depth (under 60,000), delivery under 40 ms (0.1.5 needs about 275 ms)', reads < 60000 && t.observer < 40, `parent reads ${reads}, build ${t.build.toFixed(1)} ms, observer ${t.observer.toFixed(1)} ms`);
+    check('20,000 leaves under 512 ancestors: parent reads are about nodes + depth (under 60,000), delivery under 40 ms (0.1.5 needs about 275 ms)', reads < 60000 && t.observer < 40 * slow, `machine ${slow.toFixed(1)}x slower than the reference, limit ${(40 * slow).toFixed(0)} ms, parent reads ${reads}, build ${t.build.toFixed(1)} ms, observer ${t.observer.toFixed(1)} ms`);
     await P.page.close();
   }
 
@@ -889,6 +905,7 @@ try {
     await sleep(300);
     await P.page.reload();
     await sleep(600);
+    if (!process.env.SHAPCN_REAL_TIME) await P.iso('__shapcn.clockStart(40)'); // a reload gives the page a new content script: start its clock again
     const def = await P.iso('__shapcn.settings.hover');
     check('default hover style is grow', def === 'grow', String(def));
     // settings saved by an older version say wiggle: the page plays grow

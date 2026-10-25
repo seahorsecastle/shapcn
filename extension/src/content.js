@@ -572,7 +572,12 @@ class HoverMap extends Map {
 }
 const hovered = new HoverMap();
 let raf = 0;
-const now = () => performance.now();
+// Test hook: a logical clock (test build only). With clock.on, time moves from one animation frame to the next by the real time of that
+// frame, but by at most clock.cap ms. A fast machine (frames under the cap) sees real time, as always. A slow machine (software
+// rendering, a few frames a second) still draws at least duration / cap frames of each run, so a test can look at the pictures of a
+// motion without depending on how fast the machine is. Off by default, and absent from the production build.
+const clock = { on: false, t: 0, last: 0, cap: 40 };
+const now = () => (TEST_HOOKS && clock.on ? clock.t : performance.now());
 
 // Hiding the original svg writes nothing the page can copy. The svg gets a per-run attribute, and one constructed stylesheet that
 // the extension owns (adopted by the svg's document or shadow root) holds a rule for each running id. When the run ends the
@@ -874,7 +879,13 @@ function sweep() {
 
 function tick(tNow) {
   raf = 0;
-  const t0 = now();
+  if (TEST_HOOKS && clock.on) {
+    const real = performance.now();
+    clock.t += Math.min(real - clock.last, clock.cap);
+    clock.last = real;
+    tNow = clock.t;
+  }
+  const t0 = performance.now();
   for (const run of Array.from(runs.values())) {
     try {
       step(run, tNow);
@@ -885,7 +896,7 @@ function tick(tNow) {
     }
   }
   stats.frames++;
-  stats.ms += now() - t0;
+  stats.ms += performance.now() - t0;
   kick();
 }
 
@@ -1126,6 +1137,11 @@ if (TEST_HOOKS) globalThis.__shapcn = {
   trace,
   faults,
   freeze,
+  clockStart: (cap) => {
+    clock.cap = cap || 40;
+    clock.last = clock.t = performance.now();
+    clock.on = true;
+  },
   sheetRoots: () => sheets.size,
   scan,
   active: () => runs.size,

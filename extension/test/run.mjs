@@ -70,6 +70,9 @@ const browser = await chromium.connectOverCDP('http://127.0.0.1:' + wsPort);
 const bcdp = await browser.newBrowserCDPSession();
 const { id: EXT_ID } = await bcdp.send('Extensions.loadUnpacked', { path: EXT });
 const ctx = browser.contexts()[0];
+// THROTTLE=6 slows the CPU of every page 6 times (a slow shared CI runner without a GPU). Use it to look for tests that depend on speed.
+const THROTTLE = Number(process.env.THROTTLE || 0);
+if (THROTTLE > 1) ctx.on('page', (p) => ctx.newCDPSession(p).then((s) => s.send('Emulation.setCPUThrottlingRate', { rate: THROTTLE })).catch(() => {}));
 const version = browser.version();
 console.log('Chrome', version, 'extension id', EXT_ID, 'fixtures on port', PORT);
 
@@ -107,6 +110,9 @@ async function openPage(u, opts = {}) {
     if (r.exceptionDetails) throw new Error('iso: ' + (r.exceptionDetails.exception && r.exceptionDetails.exception.description));
     return r.result.value;
   };
+  // The test build has a logical clock: no step of time longer than 40 ms, so a slow machine still draws enough frames of each run
+  // (see clock in src/content.js). SHAPCN_REAL_TIME=1 turns it off.
+  if (!opts.noScript && !process.env.SHAPCN_REAL_TIME) await iso("typeof __shapcn !== 'undefined' && __shapcn.clockStart(40)").catch(() => {});
   return { page, iso, world, cdp };
 }
 
@@ -429,15 +435,21 @@ try {
     const b0 = await ic.evaluate((el) => el.querySelector('svg').innerHTML);
     const bb = await row.boundingBox();
     await pop.mouse.move(2, 2);
+    // The preview is the engine's own <morph-icon>, on the clock of the page. A slow machine draws few frames, so the test does not count
+    // pictures: it waits (up to 6 s) for a picture that differs from rest, and then for the icon to be back at rest.
     const seen = new Set();
     await pop.mouse.move(bb.x + 20, bb.y + bb.height / 2);
-    for (let i = 0; i < 12; i++) {
-      seen.add(await ic.evaluate((el) => el.querySelector('svg').innerHTML));
+    let pvMoved = false;
+    let pvBack = false;
+    for (let i = 0; i < 200 && !pvBack; i++) {
+      const cur = await ic.evaluate((el) => el.querySelector('svg').innerHTML);
+      seen.add(cur);
+      if (cur !== b0) pvMoved = true;
+      else if (pvMoved) pvBack = true;
       await sleep(30);
     }
-    await sleep(400);
     const b1 = await ic.evaluate((el) => el.querySelector('svg').innerHTML);
-    check('menu row preview plays its style on hover and returns to rest', seen.size >= 3 && b0 === b1, `distinct pictures ${seen.size}`);
+    check('menu row preview plays its style on hover and returns to rest', pvMoved && pvBack && b0 === b1, `pvMoved ${pvMoved}, back at rest ${pvBack}, distinct pictures ${seen.size}`);
     await row.click();
     await sleep(120);
     let s = await pop.evaluate(() => new Promise((r) => chrome.storage.sync.get(null, r)));
