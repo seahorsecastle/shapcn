@@ -21,5 +21,7 @@ export function chromePath() {
 // Extra Chrome flags for CI. On ubuntu-latest (24.04) AppArmor can block the user namespaces that the Chrome sandbox needs, and Chrome then stops with
 // "No usable sandbox". The harness starts Chrome itself (Playwright, which adds these flags on its own, is not the launcher), so it adds them here.
 export function ciArgs() {
-  return process.env.CI ? ['--no-sandbox', '--disable-dev-shm-usage'] : [];
+  // The last flag: the engine's <morph-icon> treats a device without (hover: hover) and (pointer: fine) as a touch screen and does not play on
+  // pointer enter. Chrome in a Linux container has no mouse device and reports no hover, so it is told that this is a desktop with a mouse.
+  return process.env.CI ? ['--no-sandbox', '--disable-dev-shm-usage', '--blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4'] : [];
 }

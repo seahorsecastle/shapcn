@@ -252,6 +252,7 @@ try {
   {
     const pop = await ctx.newPage();
     await pop.goto(`chrome-extension://${H.EXT_ID}/popup.html?host=localhost`);
+    await pop.bringToFront();
     await pop.waitForSelector('#hover .cur');
     await pop.evaluate(() => {
       window.__sets = [];
@@ -292,6 +293,7 @@ try {
   {
     const pop = await ctx.newPage();
     await pop.goto(`chrome-extension://${H.EXT_ID}/popup.html?host=localhost`);
+    await pop.bringToFront();
     await pop.waitForSelector('#hover .cur');
     await pop.evaluate(() => new Promise((r) => chrome.storage.sync.clear(r)));
     await pop.reload();
@@ -395,6 +397,7 @@ try {
   {
     const pop = await ctx.newPage();
     await pop.goto(`chrome-extension://${H.EXT_ID}/popup.html?host=localhost`);
+    await pop.bringToFront();
     await pop.waitForSelector('#hover .cur');
     await pop.evaluate(() => new Promise((r) => chrome.storage.sync.clear(r)));
     await pop.reload();
@@ -918,6 +921,7 @@ try {
     // the popup shows Grow, offers no wiggle, and saves the migration
     const pop = await ctx.newPage();
     await pop.goto(`chrome-extension://${H.EXT_ID}/popup.html?host=localhost`);
+    await pop.bringToFront();
     await pop.waitForSelector('#hover .cur');
     await sleep(500);
     const cur = await pop.locator('#hover .cur').textContent();

@@ -99,6 +99,7 @@ async function openPage(u, opts = {}) {
   page.on('request', (r) => reqHosts.add(new URL(r.url()).host));
   await cdp.send('Runtime.enable');
   await page.goto(u, { waitUntil: opts.waitUntil || 'load', timeout: 45000 });
+  await page.bringToFront(); // a page in the background gets no animation frames (rAF stops), so every test page is brought to the front
   for (let i = 0; i < 100 && world.id === null && !opts.noScript; i++) await sleep(50);
   const iso = async (expr) => {
     const r = await cdp.send('Runtime.evaluate', { expression: expr, contextId: world.id, awaitPromise: true, returnByValue: true });
@@ -134,7 +135,9 @@ async function center(P, sel) {
   }
   return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
 }
-async function idle(P, ms = 4000) {
+// Waits until no run is active. It returns as soon as that is true, so a long limit costs nothing on a fast machine. On a slow runner
+// (a few frames a second) one run takes seconds, and the next step must not start before it ends.
+async function idle(P, ms = 60000) {
   const t0 = Date.now();
   while (Date.now() - t0 < ms) {
     if ((await P.iso('__shapcn.active()')) === 0) return true;
@@ -184,6 +187,7 @@ async function traceFor(P, id) {
 
 // One hover run on an icon. Returns what was seen.
 async function hoverRun(P, sel, id, holdMs = 900) {
+  await P.page.bringToFront(); // another tab (the popup, a second page) may have been opened after this one
   await away(P);
   await idle(P);
   await P.iso('__shapcn.trace.frames.length = 0; __shapcn.trace.on = true; true');
