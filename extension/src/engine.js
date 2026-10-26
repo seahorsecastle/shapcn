@@ -9,4 +9,4 @@ export { registerSVGs } from '../../package/svg.js';
 export { planAlive, planPress, createSway, retargetPlan, HOVER_STYLES, PRESS_STYLES, hoverMs, pressMs, RETARGET_MS } from '../../package/effects.js';
 export { renderInto } from '../../package/render.js';
 export { MorphIcon, defineMorphIcon } from '../../package/dom.js';
-export { registerFamily, registerIcons, iconToSVG } from '../../package/core.js';
+export { registerFamily, registerIcons, unregisterIcons, getIconNames, iconToSVG } from '../../package/core.js';

@@ -1,6 +1,6 @@
 {
   "name": "shapcn-everywhere",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "private": true,
   "description": "Chrome extension: icons on any page come alive on hover and click, drawn by the shapcn engine.",
   "type": "module",

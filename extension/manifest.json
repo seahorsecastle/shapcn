@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "shapcn everywhere",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Bring shapcn with you and watch your favorite sites come alive. Icons move on hover and click. Nothing is collected.",
   "homepage_url": "https://shapcn.com/extension",
   "minimum_chrome_version": "99",

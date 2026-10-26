@@ -25,7 +25,7 @@ function freezePhase(run) {
   if (Array.isArray(freeze.t)) return freeze.t[0] + f * (freeze.t[1] - freeze.t[0]);
   return 0.22 + f * 0.5;
 } // tests: make the first drawn frame, or the hiding, throw
-const stats = { scanned: 0, parentReads: 0, runs: 0, icons: 0, skipped: 0, reasons: {}, errors: 0, frames: 0, ms: 0 };
+const stats = { evicted: 0, scanned: 0, parentReads: 0, runs: 0, icons: 0, skipped: 0, reasons: {}, errors: 0, frames: 0, ms: 0 };
 const counted = new WeakSet();
 
 // ---------------------------------------------------------------- settings
@@ -119,6 +119,7 @@ function iconsOf(host) {
   const list = host.localName === 'svg' ? [host] : Array.from(host.querySelectorAll('svg'));
   const out = [];
   pass = new Map(); // the style-rule lists of this pass
+  passNames = new Set(); // the engine names of the icons described in this pass: nothing may take them out of the engine until it ends
   try {
     for (const svg of list) {
       if (out.length >= 4) break;
@@ -310,11 +311,46 @@ function sourceOf(svg) {
   return { root: svg, use: null, wrap: svg };
 }
 
-const index = new Map(); // key -> engine name | null, for every admitted registration (never evicted, at most REGISTER_MAX)
-const cache = new Map(); // key -> engine name | null. Least recently used first (the fast path).
+// Icons of the page become engine icons (registerSVGs). Two bounded maps know them, both keyed by the description of the icon:
+//   index: key -> engine name | null, for every icon that is registered (at most INDEX_MAX, least recently used first).
+//   cache: the 256 most recently used of them (the fast path).
+// When the index is full, the least recently used icons are taken out of the engine (unregisterIcons), so the engine registry stays
+// bounded and a page with any number of different icons works. An icon that an active run uses, or that was just described in the
+// pass that is going on, is never taken out. An icon that was taken out is registered again when it is seen again.
+const index = new Map();
+const cache = new Map();
 const CACHE_MAX = 256;
-const REGISTER_MAX = 1000; // the engine has no way to remove an icon, so the number of registrations is capped
-let seq = 0;
+const INDEX_MAX = 1000;
+const EVICT_BATCH = 250;
+let seq = 0; // only numbers the engine names: a name is never used twice
+let passNames = new Set(); // names described in the pass that is going on (see iconsOf)
+function inUse(name) {
+  if (passNames.has(name)) return true;
+  for (const run of runs.values()) if (run.rec.name === name) return true;
+  return false;
+}
+// Make room for one more icon: unregister the least recently used icons that nothing uses.
+function makeRoom() {
+  if (index.size < INDEX_MAX) return true;
+  const gone = [];
+  const keys = [];
+  for (const [key, name] of index) {
+    if (gone.length + keys.length >= EVICT_BATCH) break;
+    if (name === null) keys.push(key); // a rejected icon holds no engine icon
+    else if (!inUse(name)) {
+      gone.push(name);
+      keys.push(key);
+    }
+  }
+  if (!keys.length) return false;
+  if (gone.length) S.unregisterIcons(gone);
+  for (const key of keys) {
+    index.delete(key);
+    cache.delete(key);
+  }
+  stats.evicted += gone.length;
+  return true;
+}
 
 // Matrices are [a, b, c, d, e, f] as in CSS matrix(). mul(A, B) applies B first.
 const mul = (A, B) => [A[0] * B[0] + A[2] * B[1], A[1] * B[0] + A[3] * B[1], A[0] * B[2] + A[2] * B[3], A[1] * B[2] + A[3] * B[3], A[0] * B[4] + A[2] * B[5] + A[4], A[1] * B[4] + A[3] * B[5] + A[5]];
@@ -441,28 +477,31 @@ function describeOrThrow(svg, rect) {
   const markup = '<svg viewBox="0 0 ' + vb[2] + ' ' + vb[3] + '"' + (kind === 'stroke' ? ' stroke-width="' + sw + '"' : '') + '>' + body + '</svg>';
   const key = [kind, cap, join, markup].join('|');
   let name = cache.get(key);
-  if (name === undefined) name = index.get(key); // evicted from the LRU: the engine already has it, never register it again
+  if (name === undefined) name = index.get(key); // out of the LRU but still registered: no new registration
   if (name !== undefined) {
     cache.delete(key); // refresh: most recently used goes last
     cache.set(key, name);
     if (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value);
+    index.delete(key);
+    index.set(key, name);
   } else {
-    if (seq >= REGISTER_MAX) bail('registry-limit');
+    if (!makeRoom()) bail('registry-limit'); // only when every registered icon is in use
     try {
       const id = 'i' + ++seq;
       const names =
         kind === 'fill'
           ? S.registerSVGs({ [id]: markup }, { kind: 'fill' })
-          : S.registerSVGs({ [id]: markup }, { kind: 'stroke', family: 'e' + seq, linecap: cap === 'butt' || cap === 'square' ? cap : 'round', linejoin: join === 'miter' || join === 'bevel' ? join : 'round' });
+          : S.registerSVGs({ [id]: markup }, { kind: 'stroke', family: 'e', linecap: cap === 'butt' || cap === 'square' ? cap : 'round', linejoin: join === 'miter' || join === 'bevel' ? join : 'round' });
       name = names[0];
     } catch (e) {
       name = null;
     }
     cache.set(key, name);
-    if (index.size < REGISTER_MAX) index.set(key, name);
+    index.set(key, name);
     if (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value);
   }
   if (!name) bail('engine-rejected');
+  passNames.add(name);
   return { svg, name, kind, inner, sw24: sw * k, cap, join, miter, color, vbw: vb[2], vbh: vb[3], par: svg.getAttribute('preserveAspectRatio'), opacity: runs.has(svg) ? runs.get(svg).rec.opacity : scs.opacity };
 }
 
@@ -1146,7 +1185,9 @@ if (TEST_HOOKS) globalThis.__shapcn = {
   scan,
   active: () => runs.size,
   overlayCount: () => (host ? 1 : 0),
-  sizes: () => ({ hovered: hovered.size, cache: cache.size, index: index.size, runs: runs.size, registered: seq }),
+  sizes: () => ({ hovered: hovered.size, cache: cache.size, index: index.size, runs: runs.size, registered: seq, registry: S.getIconNames().length, evicted: stats.evicted }),
+  registryNames: () => S.getIconNames(),
+  runNames: () => Array.from(runs.values()).map((r) => r.rec.name),
   moveOn: () => moveOn,
   heldMonitor: () => heldOn,
   idleTimer: () => !!idleTimer,

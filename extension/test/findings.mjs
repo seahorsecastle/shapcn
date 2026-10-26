@@ -931,6 +931,89 @@ try {
     check("popup: stored wiggle shows as Grow and is saved as 'grow'; the menu has no wiggle", cur === 'Grow' && saved === 'grow' && !values.includes('wiggle') && values.join() === 'none,grow,bend,bold,cascade,move', `shown ${cur}, saved ${saved}, menu ${values.join()}`);
     await pop.close();
   }
+
+  // ============================================================ 0.1.8: the engine registry is bounded by unregistering (no 1,000-icon cap)
+  group('U icons come and go');
+  {
+    const N = 5000;
+    const P = await openPage(url('lucide.html'));
+    await setSettings(P, { ...DEF, hover: 'grow', click: 'none' });
+    await P.page.evaluate((n) => {
+      const bar = document.getElementById('bar');
+      bar.style.flexWrap = 'wrap';
+      for (let i = 0; i < n; i++) {
+        const b = document.createElement('button');
+        b.id = 'u' + i;
+        b.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M${2 + (i % 19)} ${3 + (i % 17)} L${20 - (i % 7)} ${5 + ((i >> 3) % 11)} L${4 + ((i >> 5) % 9)} ${21 - ((i >> 7) % 5)} L${3 + ((i >> 2) % 13)} ${2 + (i % 5)} M${(i % 23) + 0.5} ${((i >> 4) % 20) + 1.25} h${1 + (i % 6)}"/></svg>`;
+        bar.appendChild(b);
+      }
+    }, N);
+    await P.cdp.send('HeapProfiler.enable');
+    const heap = async () => {
+      await P.cdp.send('HeapProfiler.collectGarbage');
+      return (await P.cdp.send('Runtime.getHeapUsage')).usedSize / 1048576;
+    };
+    const size = async () => JSON.parse(await P.iso('JSON.stringify(__shapcn.sizes())'));
+    let maxRegistry = 0;
+    const track = async () => {
+      const z = await size();
+      maxRegistry = Math.max(maxRegistry, z.registry);
+      return z;
+    };
+    // (1) every icon of the page animates: hover all of them, 100 at a time (a run of each, concurrently)
+    const r0 = await P.iso('__shapcn.stats.runs');
+    for (let b = 0; b < N; b += 100) {
+      await P.page.evaluate(([from, to]) => { for (let i = from; i < to; i++) document.getElementById('u' + i).dispatchEvent(new PointerEvent('pointerover', { bubbles: true, pointerType: 'mouse' })); }, [b, Math.min(N, b + 100)]);
+      await idle(P);
+      await P.page.evaluate(([from, to]) => { for (let i = from; i < to; i++) document.getElementById('u' + i).dispatchEvent(new PointerEvent('pointerout', { bubbles: true, pointerType: 'mouse' })); }, [b, Math.min(N, b + 100)]); // the pointer leaves
+      await track();
+    }
+    const st = JSON.parse(await P.iso('JSON.stringify(__shapcn.stats)'));
+    check(`${N} different icons on one page all animate (a run for each, no registry-limit skip, no error)`, st.runs - r0 >= N && !st.reasons['registry-limit'] && st.errors === 0, `runs ${st.runs - r0}, skipped for registry-limit ${st.reasons['registry-limit'] || 0}, errors ${st.errors}`);
+    const z1 = await track();
+    check('the engine registry stays bounded (at most 1,100 icons) while 5,000 pass through', maxRegistry <= 1100 && z1.evicted > N / 2, `largest registry seen ${maxRegistry}, now ${z1.registry}, icons taken out of the engine ${z1.evicted}, index ${z1.index}, LRU ${z1.cache}`);
+    // (2) heap after a garbage collection is flat across rounds
+    const heaps = [];
+    for (let round = 0; round < 4; round++) {
+      await P.iso('__shapcn.scan().length');
+      heaps.push(await heap());
+      await track();
+    }
+    const grow = heaps[3] - heaps[1];
+    check('heap after garbage collection is flat across rounds of 5,000 icons (round 4 less than 4 MB above round 2)', grow < 4, `heap after each round ${heaps.map((h) => h.toFixed(1)).join(', ')} MB, round 4 minus round 2: ${grow.toFixed(2)} MB, largest registry ${maxRegistry}`);
+    // (3) an icon that was taken out and is seen again is registered again and animates
+    const before = await size();
+    const names = [];
+    for (const i of [0, 1, N - 1, 2500]) {
+      await P.iso('__shapcn.trace.frames.length = 0; __shapcn.trace.on = true; true');
+      await P.page.evaluate((k) => document.getElementById('u' + k).dispatchEvent(new PointerEvent('pointerover', { bubbles: true, pointerType: 'mouse' })), i);
+      await idle(P);
+      const frames = JSON.parse(await P.iso('JSON.stringify(__shapcn.trace.frames)')).filter((f) => f.id === 'u' + i);
+      await P.iso('__shapcn.trace.on = false; true');
+      names.push(frames.length);
+      await P.page.evaluate((k) => document.getElementById('u' + k).dispatchEvent(new PointerEvent('pointerout', { bubbles: true, pointerType: 'mouse' })), i);
+    }
+    check('icons taken out earlier (first, last, middle) are registered again when seen, and animate', names.every((n) => n >= 8) && before.evicted > 0, `frames ${names.join(', ')}, taken out so far ${before.evicted}`);
+    // (4) a run is never broken by an eviction: a held icon keeps its engine icon while thousands of others pass through
+    await setSettings(P, { hover: 'bold' });
+    await P.page.evaluate(() => document.getElementById('u77').dispatchEvent(new PointerEvent('pointerover', { bubbles: true, pointerType: 'mouse' })));
+    await sleep(700);
+    const heldBefore = await P.iso('__shapcn.held()');
+    const errs0 = await P.iso('__shapcn.stats.errors');
+    const ev0 = (await size()).evicted;
+    await P.iso('__shapcn.scan().length');
+    await P.iso('__shapcn.scan().length');
+    const runNames = JSON.parse(await P.iso('JSON.stringify(__shapcn.runNames())'));
+    const regNames = JSON.parse(await P.iso('JSON.stringify(__shapcn.registryNames())'));
+    const ev1 = (await size()).evicted;
+    const stillHeld = await P.iso('__shapcn.held()');
+    await P.page.evaluate(() => document.getElementById('u77').dispatchEvent(new PointerEvent('pointerout', { bubbles: true, pointerType: 'mouse' })));
+    const ended = await idle(P);
+    const errs1 = await P.iso('__shapcn.stats.errors');
+    const svgStyle = await P.page.evaluate(() => document.querySelector('#u77 svg').getAttribute('style'));
+    check('a held run keeps its engine icon while others are taken out, and it ends cleanly', heldBefore === 1 && stillHeld === 1 && runNames.length === 1 && runNames.every((n) => regNames.includes(n)) && ev1 > ev0 && ended && errs1 === errs0 && svgStyle === null, `held ${heldBefore} -> ${stillHeld}, its icon registered ${runNames.every((n) => regNames.includes(n))}, taken out meanwhile ${ev1 - ev0}, errors ${errs0} -> ${errs1}, run ended ${ended}, svg style ${svgStyle}`);
+    await P.page.close();
+  }
 } finally {
   const pass = H.results.filter((r) => r.ok).length;
   console.log(`\nFINDINGS ${pass} of ${H.results.length} checks passed (extension: ${EXT})`);
