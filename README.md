@@ -74,7 +74,7 @@ The build writes `dist/morph-icon.js`.
 
 ## Chrome extension
 
-[`extension/`](extension) is "shapcn everywhere": a Chrome extension (Manifest V3) that makes the small icons on any page come alive on hover and click, drawn by this engine. It collects nothing and makes no network request. See [`extension/README.md`](extension/README.md) to build it and load it unpacked, and https://shapcn.com/extension for the page.
+[`extension/`](extension) is "shapcn everywhere": a Chrome extension (Manifest V3) that makes the small icons on any page come alive on hover and click, drawn by this engine. It collects nothing and makes no network request. It is on the [Chrome Web Store](https://chromewebstore.google.com/detail/shapcn-everywhere/ndgmbakimjeaealmehopkaflfjhholif). See [`extension/README.md`](extension/README.md) to build it and load it unpacked, and https://shapcn.com/extension for the page.
 
 ## Use with AI coding agents
 

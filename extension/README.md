@@ -2,7 +2,7 @@
 
 A Chrome extension (Manifest V3) that makes the small icons on any web page come alive. Point at an icon and it plays a hover style. Press it and it plays a click style. The motion is drawn by the real [shapcn](https://shapcn.com) engine (`planAlive`, `planPress`, `createSway`), not by CSS transforms.
 
-- Chrome Web Store: _link coming soon_ (placeholder: `https://chromewebstore.google.com/detail/shapcn-everywhere/PLACEHOLDER`)
+- Chrome Web Store: https://chromewebstore.google.com/detail/shapcn-everywhere/ndgmbakimjeaealmehopkaflfjhholif
 - Page: https://shapcn.com/extension
 
 ## What it does
